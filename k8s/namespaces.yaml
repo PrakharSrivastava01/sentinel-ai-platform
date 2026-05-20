@@ -1,0 +1,17 @@
+kind: Namespace
+apiVersion: v1
+
+metadata:
+  name: sentinelai-dev
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelai-staging
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelai-prod
