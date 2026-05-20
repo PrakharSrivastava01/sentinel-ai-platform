@@ -23,19 +23,17 @@ This project is being built incrementally with an infrastructure-first and produ
 
 # Project Goals
 
-The primary objective of SentinelAI is to build a real-world platform that demonstrates:
-
-* cloud-native application deployment
-* container orchestration
-* secure CI/CD pipelines
-* Kubernetes operations
-* monitoring and observability
-* DevSecOps implementation
-* AI-assisted operational analysis
+* Build a cloud-native backend platform
+* Implement production-grade DevOps workflows
+* Deploy workloads using Kubernetes on AWS EKS
+* Integrate DevSecOps tooling into CI/CD pipelines
+* Implement observability and monitoring systems
+* Add AI-powered operational insights and anomaly detection
+* Learn real-world platform engineering practices
 
 ---
 
-# Planned Technology Stack
+# Technology Stack
 
 ## Backend
 
@@ -73,8 +71,8 @@ The primary objective of SentinelAI is to build a real-world platform that demon
 ## AI Layer
 
 * anomaly detection
-* operational recommendations
 * intelligent alert analysis
+* operational recommendations
 
 ---
 
@@ -108,123 +106,209 @@ AI Insights & Alerts
 
 ---
 
-# Project Philosophy
-
-This project is intentionally designed as:
-
-* infrastructure-focused
-* Kubernetes-focused
-* DevOps-focused
-* cloud-native
-* production-oriented
-
-Frontend development is not the primary focus initially.
-
-The core objective is to understand how modern DevOps and platform engineering systems are designed, secured, deployed, and monitored in production environments.
-
----
-
-# Development Roadmap
+# Project Roadmap
 
 ## Phase 1 — Backend Foundation
 
-* FastAPI backend setup
-* production-style project structure
-* health endpoints
-* metrics endpoint
-* logging support
-* environment variable management
+### Goals
+
+* [ ] Setup FastAPI backend
+* [ ] Create production-style project structure
+* [ ] Add health endpoint
+* [ ] Add status endpoint
+* [ ] Add metrics endpoint
+* [ ] Add alerts endpoint
+* [ ] Add recommendation endpoint
+* [ ] Configure logging
+* [ ] Configure environment variables
+* [ ] Prepare Docker-ready backend structure
+
+---
 
 ## Phase 2 — Dockerization
 
-* containerization
-* Docker image optimization
-* multi-stage builds
-* non-root container practices
-* local container execution
+### Goals
 
-## Phase 3 — Local Kubernetes
+* [ ] Create Dockerfile
+* [ ] Build backend Docker image
+* [ ] Run container locally
+* [ ] Configure environment variables in container
+* [ ] Optimize Docker image
+* [ ] Implement non-root container practices
+* [ ] Learn Docker image layers
+* [ ] Test container networking
+* [ ] Prepare workload for Kubernetes
 
-* local cluster setup
-* deployments and services
-* ingress configuration
-* configmaps and secrets
+---
+
+## Phase 3 — Local Kubernetes Setup
+
+### Goals
+
+* [ ] Setup Minikube or KIND
+* [ ] Deploy backend locally on Kubernetes
+* [ ] Create Deployment manifests
+* [ ] Create Service manifests
+* [ ] Configure ConfigMaps
+* [ ] Configure Secrets
+* [ ] Setup Ingress controller
+* [ ] Test local Kubernetes networking
+
+---
 
 ## Phase 4 — Repository Structuring
 
-* GitHub project organization
-* environment separation
-* manifest management
+### Goals
 
-## Phase 5 — CI/CD Automation
+* [ ] Organize Kubernetes manifests
+* [ ] Create environment separation
+* [ ] Structure GitHub repository properly
+* [ ] Create reusable manifest structure
+* [ ] Improve documentation
 
-* GitHub Actions pipeline
-* automated builds
-* automated deployments
+---
+
+## Phase 5 — GitHub Actions CI/CD
+
+### Goals
+
+* [ ] Setup GitHub Actions workflows
+* [ ] Automate Docker image build
+* [ ] Automate testing pipeline
+* [ ] Automate image push process
+* [ ] Automate Kubernetes deployment
+* [ ] Implement CI/CD best practices
+
+---
 
 ## Phase 6 — DevSecOps Integration
 
-* SonarQube
-* Trivy
-* OPA Gatekeeper
-* policy enforcement
+### Goals
+
+* [ ] Setup SonarQube
+* [ ] Add code quality analysis
+* [ ] Setup Trivy vulnerability scanning
+* [ ] Add Docker image scanning
+* [ ] Setup OPA Gatekeeper
+* [ ] Implement Kubernetes security policies
+* [ ] Block insecure deployment patterns
+
+---
 
 ## Phase 7 — AWS EKS Deployment
 
-* VPC setup
-* EKS cluster deployment
-* ECR integration
-* Kubernetes production deployment
+### Goals
+
+* [ ] Design AWS VPC architecture
+* [ ] Setup AWS EKS cluster
+* [ ] Configure worker nodes
+* [ ] Configure IAM roles
+* [ ] Setup Amazon ECR
+* [ ] Deploy application to EKS
+* [ ] Configure production ingress
+
+---
 
 ## Phase 8 — Monitoring & Observability
 
-* Prometheus
-* Grafana
-* cluster monitoring
-* metrics visualization
-* alerting
+### Goals
+
+* [ ] Install Prometheus
+* [ ] Configure metrics scraping
+* [ ] Install Grafana
+* [ ] Create monitoring dashboards
+* [ ] Monitor cluster health
+* [ ] Monitor application health
+* [ ] Configure alerting system
+
+---
 
 ## Phase 9 — AI Insights Layer
 
-* anomaly detection
-* operational recommendations
-* alert analysis
-* incident summarization
+### Goals
+
+* [ ] Detect CPU anomalies
+* [ ] Detect pod restart spikes
+* [ ] Generate operational recommendations
+* [ ] Analyze logs intelligently
+* [ ] Create AI-based alert summaries
+* [ ] Add incident analysis features
+
+---
 
 ## Phase 10 — Optional Frontend Dashboard
 
-* metrics visualization
-* alerts dashboard
-* operational overview
+### Goals
+
+* [ ] Build lightweight dashboard
+* [ ] Display metrics visually
+* [ ] Show operational alerts
+* [ ] Display AI recommendations
+* [ ] Create monitoring overview UI
 
 ---
 
-# Current Status
+# Current Development Status
 
-Current Development Phase:
+## Active Phase
 
-## Phase 1 → Backend Foundation
-
-Work in Progress.
+* [x] Project Planning
+* [x] Architecture Planning
+* [x] Technology Stack Finalization
+* [x] Backend Foundation
+* [x] Dockerization
+* [ ] Kubernetes Setup
+* [ ] CI/CD
+* [ ] DevSecOps
+* [ ] AWS EKS Deployment
+* [ ] Monitoring
+* [ ] AI Layer
 
 ---
 
-# Long-Term Learning Objectives
+# Project Philosophy
+
+This project is intentionally designed to prioritize:
+
+* infrastructure engineering
+* Kubernetes operations
+* DevOps workflows
+* production architecture
+* cloud-native engineering
+* observability practices
+* DevSecOps implementation
+
+Frontend development is intentionally deferred until the platform foundation is stable.
+
+---
+
+# Long-Term Objectives
 
 This project aims to strengthen understanding of:
 
-* Kubernetes operations
-* AWS cloud infrastructure
+* Docker
+* Kubernetes
+* AWS EKS
+* GitHub Actions
 * DevSecOps workflows
-* CI/CD engineering
-* observability systems
-* production deployment strategies
-* cloud-native architecture
+* monitoring systems
+* observability engineering
+* production deployment practices
 * platform engineering concepts
 
 ---
 
-# Important Note
+# Repository Name
 
-This project is being built primarily for hands-on learning, production-level understanding, and real-world DevOps engineering practice.
+```text
+Repository:
+sentinel-ai-platform
+```
 
+---
+
+# Project Status
+
+Current Status:
+
+## Planning & Backend Foundation Phase
