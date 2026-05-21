@@ -1,147 +1,117 @@
-# SentinelAI 🛡️
-### AI-Powered DevSecOps Monitoring Platform on AWS EKS
+<div align="center">
 
-> A production-style cloud-native platform demonstrating real-world DevSecOps workflows — containerization, Kubernetes orchestration, CI/CD automation, security scanning, and observability engineering.
+# SentinelAI🛡️
+
+**AI-Powered DevSecOps Monitoring Platform**
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-K3d%20%7C%20EKS-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://kubernetes.io)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+
+*A backend-first, infrastructure-driven platform built to demonstrate production DevSecOps engineering — containerization, multi-environment Kubernetes orchestration, CI/CD automation, security scanning, and observability.*
+
+</div>
 
 ---
 
 ## Overview
 
-SentinelAI is a backend-first DevSecOps platform built to simulate real engineering workflows used in modern cloud teams. It exposes a FastAPI backend with health, metrics, alerting, and AI recommendation endpoints — designed from Day 1 for Kubernetes deployment.
+SentinelAI is a cloud-native DevSecOps platform built to simulate real engineering workflows used in modern platform and infrastructure teams. It exposes a FastAPI backend instrumented for observability from Day 1 — health probes, Prometheus metrics, structured logging, and a typed service layer — designed to be deployed and operated on Kubernetes.
 
-This is **not** a tutorial project. Every decision — folder structure, probe design, multi-env separation, image tagging — reflects production engineering practices.
+Every decision in this project reflects a production engineering mindset: folder structure designed for scalability, Kubernetes manifests organized with Kustomize overlays, Docker images built multi-stage with non-root users, and environment separation done at the namespace level.
+
+This is not a tutorial project. It is a portfolio of engineering decisions.
 
 ---
 
 ## Architecture
 
-### Current (Local)
+### Current State — Local Kubernetes
 
 ```
-Developer
-    ↓
-FastAPI Backend (Python 3.12)
-    ↓
-Docker Container (multi-stage, non-root)
-    ↓
-K3d Cluster — 1 server + 2 agents
-    ↓
-Traefik Ingress → localhost:8080
-    ↓
-┌─────────────┬──────────────┬─────────────┐
-│  sentinelai │  sentinelai  │ sentinelai  │
-│    -dev     │   -staging   │   -prod     │
-│  1 replica  │  2 replicas  │  3 replicas │
-└─────────────┴──────────────┴─────────────┘
+Developer Workstation (WSL2 / Ubuntu)
+            │
+            ▼
+  FastAPI Backend (Python 3.12)
+  ┌─────────────────────────────┐
+  │  /health  /status  /metrics │  ← Kubernetes probe-ready
+  │  /alerts  /recommendation   │  ← Core workload
+  └─────────────────────────────┘
+            │
+            ▼
+  Docker Container
+  (multi-stage build · non-root user · slim image)
+            │
+            ▼
+  K3d Cluster — 1 server + 2 agents
+            │
+            ▼
+  Traefik Ingress Controller
+  localhost:8080
+            │
+     ┌──────┴──────┬──────────────┐
+     ▼             ▼              ▼
+sentinelai-dev  sentinelai-     sentinelai-
+ (1 replica)    staging          prod
+                (2 replicas)    (3 replicas)
 ```
 
-### Planned (Production)
+### Planned State — AWS EKS Production
 
 ```
 GitHub Push
-    ↓
-GitHub Actions CI/CD
-    ↓
-SonarQube → Trivy → OPA Gatekeeper
-    ↓
-Amazon ECR
-    ↓
-AWS EKS (multi-env)
-    ↓
-Prometheus + Grafana
-    ↓
-AI Anomaly Detection Layer
+     │
+     ▼
+GitHub Actions CI/CD Pipeline
+     │
+     ├── SonarQube  (static analysis)
+     ├── Trivy      (container vulnerability scan)
+     └── OPA Gatekeeper (policy enforcement)
+     │
+     ▼
+Amazon ECR  (container registry)
+     │
+     ▼
+AWS EKS  (multi-environment cluster)
+     │
+     ├── Prometheus + Grafana  (observability)
+     └── AI Anomaly Detection  (insights layer)
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Backend | Python, FastAPI, Uvicorn |
-| Containerization | Docker (multi-stage) |
-| Orchestration | Kubernetes, K3d (local), AWS EKS (prod) |
-| CI/CD | GitHub Actions |
-| Container Registry | Amazon ECR |
-| DevSecOps | SonarQube, Trivy, OPA Gatekeeper |
-| Monitoring | Prometheus, Grafana |
-| AI Layer | Anomaly detection, Alert recommendations |
-| IaC | Terraform (Phase 7+) |
-
----
-
-## Quick Start
-
-### Prerequisites
-
-| Tool | Version |
-|---|---|
-| Python | 3.12+ |
-| Docker | 20.0+ |
-| kubectl | 1.28+ |
-| k3d | 5.0+ (auto-installed) |
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Heyyprakhar1/sentinel-ai-platform.git
-cd sentinel-ai-platform
-```
-
-### 2. Setup Python environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 3. Run locally (without Docker)
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-### 4. Create K3d cluster
-
-```bash
-make cluster-up
-# Enter cluster name when prompted
-```
-
-### 5. Build and import Docker image
-
-```bash
-make build
-make import-image
-```
-
-### 6. Deploy all environments
-
-```bash
-kubectl apply -f k8s/namespaces.yaml
-make deploy-all
-```
-
-### 7. Verify
-
-```bash
-make status
-curl http://localhost:8080/health
-```
+| Layer | Technology | Status |
+|---|---|---|
+| Backend | Python 3.12, FastAPI, Uvicorn | ✅ Implemented |
+| Containerization | Docker (multi-stage, non-root) | ✅ Implemented |
+| Orchestration | Kubernetes, K3d (local) | ✅ Implemented |
+| Config Management | Kustomize (base + overlays) | ✅ Implemented |
+| Automation | Makefile | ✅ Implemented |
+| CI/CD | GitHub Actions | ⏳ Phase 5 |
+| Container Registry | Amazon ECR | ⏳ Phase 7 |
+| Security Scanning | SonarQube, Trivy | ⏳ Phase 6 |
+| Policy Enforcement | OPA Gatekeeper | ⏳ Phase 6 |
+| Monitoring | Prometheus, Grafana | ⏳ Phase 8 |
+| Cloud Orchestration | AWS EKS | ⏳ Phase 7 |
+| AI Layer | Anomaly detection, recommendations | ⏳ Phase 9 |
 
 ---
 
 ## API Endpoints
 
-| Endpoint | Method | Description | K8s Usage |
+| Endpoint | Method | Description | Kubernetes Role |
 |---|---|---|---|
-| `/health` | GET | App liveness check | Liveness probe |
-| `/status` | GET | App readiness check | Readiness probe |
-| `/metrics` | GET | Prometheus metrics | Scrape target |
-| `/alerts` | GET | Alert feed | Core workload |
-| `/recommendation` | GET | AI insight stub | Core workload |
+| `/health` | GET | Application liveness check | Liveness probe |
+| `/status` | GET | Application readiness + uptime | Readiness probe |
+| `/metrics` | GET | Prometheus-format metrics | Scrape target |
+| `/alerts` | GET | Structured alert feed | Core workload |
+| `/recommendation` | GET | AI-driven alert recommendation | Core workload |
+
+The `/health` and `/status` endpoints were designed for Kubernetes from the start — not retrofitted later. This is the contract between the application and the platform it runs on.
 
 ---
 
@@ -149,42 +119,16 @@ curl http://localhost:8080/health
 
 | Property | Dev | Staging | Prod |
 |---|---|---|---|
-| Namespace | sentinelai-dev | sentinelai-staging | sentinelai-prod |
+| Namespace | `sentinelai-dev` | `sentinelai-staging` | `sentinelai-prod` |
 | Replicas | 1 | 2 | 3 |
 | Log Level | DEBUG | INFO | WARNING |
-| CPU Request | 50m | 100m | 200m |
-| Memory Request | 64Mi | 128Mi | 256Mi |
-| Image Pull Policy | Never | IfNotPresent | IfNotPresent* |
+| CPU Request / Limit | 50m / 100m | 100m / 200m | 200m / 400m |
+| Memory Request / Limit | 64Mi / 128Mi | 128Mi / 256Mi | 256Mi / 512Mi |
+| Image Pull Policy | Never | IfNotPresent | Always\* |
+| Liveness Delay | 5s | 10s | 15s |
+| Readiness Delay | 5s | 10s | 15s |
 
-> *`Always` in prod once ECR is configured (Phase 7)
-
----
-
-## Makefile Commands
-
-```bash
-# Docker
-make build            # Build Docker image
-make run              # Run container locally
-make stop             # Stop container
-
-# Kubernetes
-make deploy-dev       # Deploy to dev environment
-make deploy-staging   # Deploy to staging environment
-make deploy-prod      # Deploy to prod environment
-make deploy-all       # Deploy all environments
-make status           # Show all environments status
-make status-dev       # Show dev environment status
-make logs-dev         # Show dev pod logs
-
-# Cluster
-make cluster-up       # Create K3d cluster
-make cluster-down     # Delete K3d cluster
-make import-image     # Import image into cluster
-
-# Cleanup
-make clean            # Remove all environments
-```
+> \*`Always` in production once ECR is configured in Phase 7
 
 ---
 
@@ -192,37 +136,215 @@ make clean            # Remove all environments
 
 ```
 sentinel-ai-platform/
-├── app/
-│   ├── main.py                  # Entry point
+│
+├── app/                            # Application source
+│   ├── main.py                     # Entry point — wires routes, starts logger
 │   ├── api/
-│   │   └── routes/              # health, metrics, alerts, recommendations
+│   │   └── routes/
+│   │       ├── health.py           # GET /health
+│   │       ├── metrics.py          # GET /metrics (Prometheus)
+│   │       ├── alerts.py           # GET /alerts
+│   │       └── recommendations.py  # GET /recommendation
 │   ├── core/
-│   │   ├── config.py            # Env var config (pydantic-settings)
-│   │   └── logging_config.py    # Structured logging
+│   │   ├── config.py               # Pydantic-settings env var config
+│   │   └── logging_config.py       # Structured stdout logging
 │   ├── models/
-│   │   └── schemas.py           # Pydantic data contracts
+│   │   └── schemas.py              # Pydantic data contracts
 │   └── services/
-│       ├── alert_service.py
+│       ├── alert_service.py        # Alert logic (isolated, testable)
 │       └── recommendation_service.py
+│
 ├── k8s/
-│   ├── base/                    # Shared Kubernetes manifests
+│   ├── namespaces.yaml             # dev / staging / prod namespaces
+│   ├── base/                       # Shared manifests
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── ingress.yaml            # Traefik ingress
+│   │   └── kustomization.yaml
 │   └── overlays/
-│       ├── dev/
-│       ├── staging/
-│       └── prod/
+│       ├── dev/                    # 1 replica, DEBUG, Never pull
+│       ├── staging/                # 2 replicas, INFO, IfNotPresent
+│       └── prod/                   # 3 replicas, WARNING, Always
+│
 ├── scripts/
-│   └── k3d-setup.sh             # Cluster setup script
+│   └── k3d-setup.sh               # Cluster creation with prereq checks
+│
 ├── docs/
 │   ├── architecture.md
 │   └── setup.md
+│
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── ISSUE_TEMPLATE/
-├── Dockerfile                   # Multi-stage, non-root
-├── Makefile                     # Common commands
+│       └── bug_report.md
+│
+├── Dockerfile                      # Multi-stage, python:3.12-slim, non-root
+├── Makefile                        # Unified command interface
 ├── requirements.txt
-└── .env.example
+├── .env.example
+└── .dockerignore
 ```
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| Python | 3.12+ | |
+| Docker | 20.0+ | Daemon must be running |
+| kubectl | 1.28+ | |
+| k3d | 5.0+ | Auto-installed by setup script |
+
+### 1. Clone and set up Python environment
+
+```bash
+git clone https://github.com/Heyyprakhar1/sentinel-ai-platform.git
+cd sentinel-ai-platform
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Run locally without Docker
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Verify at `http://localhost:8000/docs` — FastAPI auto-generates Swagger UI.
+
+### 3. Build Docker image
+
+```bash
+make build
+```
+
+### 4. Run as container
+
+```bash
+make run
+# curl http://localhost:8000/health
+```
+
+### 5. Create K3d cluster
+
+```bash
+make cluster-up
+# Script will prompt for cluster name and handle prerequisites
+```
+
+### 6. Import image into cluster
+
+```bash
+make import-image
+```
+
+### 7. Deploy all environments
+
+```bash
+kubectl apply -f k8s/namespaces.yaml
+make deploy-all
+```
+
+### 8. Verify
+
+```bash
+make status
+curl http://localhost:8080/health
+curl http://localhost:8080/alerts
+curl http://localhost:8080/metrics
+```
+
+---
+
+## Makefile Reference
+
+```bash
+# Docker
+make build            # Build sentinelai:1.0.0 image
+make run              # Run container on port 8000
+make stop             # Stop and remove container
+
+# Kubernetes — Deploy
+make deploy-dev       # Apply dev overlay
+make deploy-staging   # Apply staging overlay
+make deploy-prod      # Apply prod overlay
+make deploy-all       # Apply namespaces + all overlays
+
+# Kubernetes — Observe
+make status           # Show all 3 environments
+make status-dev       # Dev namespace only
+make status-staging   # Staging namespace only
+make status-prod      # Prod namespace only
+make logs-dev         # Tail dev pod logs
+make logs-staging     # Tail staging pod logs
+make logs-prod        # Tail prod pod logs
+
+# Cluster
+make cluster-up       # Create K3d cluster via script
+make cluster-down     # Delete K3d cluster
+make import-image     # Import Docker image into cluster
+
+# Cleanup
+make clean            # Delete all environment deployments
+```
+
+---
+
+## Kubernetes Quick Reference
+
+```bash
+# Cluster health
+kubectl get nodes
+k3d cluster list
+
+# All environments at once
+kubectl get pods -A | grep sentinelai
+
+# Detailed environment status
+kubectl get all -n sentinelai-dev
+kubectl get all -n sentinelai-staging
+kubectl get all -n sentinelai-prod
+
+# Ingress status
+kubectl get ingress -A | grep sentinelai
+
+# Pod logs
+kubectl logs -l app=sentinelai -n sentinelai-dev --tail=50
+
+# Describe a pod (debugging)
+kubectl describe pod <pod-name> -n sentinelai-dev
+
+# Port-forward (alternative to Ingress)
+kubectl port-forward -n sentinelai-dev svc/dev-sentinelai-service 9000:80
+```
+
+---
+
+## Docker Details
+
+The Dockerfile follows production best practices:
+
+```
+Stage 1 — Build
+  Base:      python:3.12-slim
+  Action:    Install dependencies from requirements.txt
+
+Stage 2 — Runtime
+  Base:      python:3.12-slim
+  User:      Non-root (sentinel:sentinel)
+  Port:      8000
+  Command:   uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Key decisions:
+- `--no-cache-dir` on pip install keeps image lean
+- Non-root user reduces container attack surface
+- `.dockerignore` excludes `venv/`, `__pycache__/`, `.env`, `.git/`
 
 ---
 
@@ -230,20 +352,32 @@ sentinel-ai-platform/
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | FastAPI Backend Foundation | ✅ Done |
-| 2 | Docker Containerization | ✅ Done |
-| 3 | Local Kubernetes (K3d) + Multi-env | ✅ Done |
-| 4 | Repository Structure | ✅ Done |
-| 5 | GitHub Actions CI/CD | 🔄 Next |
-| 6 | DevSecOps — SonarQube, Trivy, OPA | ⏳ Pending |
-| 7 | AWS EKS Deployment | ⏳ Pending |
+| 1 | FastAPI backend foundation | ✅ Complete |
+| 2 | Docker containerization | ✅ Complete |
+| 3 | Local Kubernetes — K3d, multi-env, Ingress | ✅ Complete |
+| 4 | Repository structure and documentation | ✅ Complete |
+| 5 | GitHub Actions CI/CD pipeline | 🔄 In Progress |
+| 6 | DevSecOps — SonarQube, Trivy, OPA Gatekeeper | ⏳ Pending |
+| 7 | AWS EKS deployment + ECR | ⏳ Pending |
 | 8 | Monitoring — Prometheus + Grafana | ⏳ Pending |
-| 9 | AI Insights Layer | ⏳ Pending |
-| 10 | Optional Frontend Dashboard | ⏳ Pending |
+| 9 | AI anomaly detection and insights layer | ⏳ Pending |
+| 10 | Frontend observability dashboard | ⏳ Optional |
 
 ---
 
-## Author
+## Contributing
 
-**Prakhar Srivastava** — DevOps Engineer  
-[Portfolio](https://prakharsrivastava-devops.netlify.app) · [LinkedIn](https://www.linkedin.com/in/heyyprakhar1/) · [Hashnode](https://hashnode.com/@heyyprakhar01)
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. Follow the PR template in `.github/PULL_REQUEST_TEMPLATE.md`
+4. Ensure `make status` passes before submitting
+
+---
+
+<div align="center">
+
+**Prakhar Srivastava** — DevOps & Platform Engineer
+
+[LinkedIn](https://www.linkedin.com/in/heyyprakhar1/) · [Portfolio](https://prakharsrivastava-devops.netlify.app) · [Hashnode](https://hashnode.com/@heyyprakhar01)
+
+</div>
