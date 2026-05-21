@@ -1,314 +1,249 @@
-# SentinelAI
+# SentinelAI 🛡️
+### AI-Powered DevSecOps Monitoring Platform on AWS EKS
 
-AI-Powered DevSecOps Monitoring Platform on AWS EKS
-
----
-
-# Project Overview
-
-SentinelAI is a production-style cloud-native DevSecOps platform designed to simulate real-world infrastructure, deployment, monitoring, and security workflows used in modern engineering teams.
-
-The project focuses on:
-
-* containerized backend workloads
-* CI/CD automation
-* Kubernetes orchestration
-* DevSecOps practices
-* observability engineering
-* AI-driven operational insights
-
-This project is being built incrementally with an infrastructure-first and production-focused mindset.
+> A production-style cloud-native platform demonstrating real-world DevSecOps workflows — containerization, Kubernetes orchestration, CI/CD automation, security scanning, and observability engineering.
 
 ---
 
-# Project Goals
+## Overview
 
-* Build a cloud-native backend platform
-* Implement production-grade DevOps workflows
-* Deploy workloads using Kubernetes on AWS EKS
-* Integrate DevSecOps tooling into CI/CD pipelines
-* Implement observability and monitoring systems
-* Add AI-powered operational insights and anomaly detection
-* Learn real-world platform engineering practices
+SentinelAI is a backend-first DevSecOps platform built to simulate real engineering workflows used in modern cloud teams. It exposes a FastAPI backend with health, metrics, alerting, and AI recommendation endpoints — designed from Day 1 for Kubernetes deployment.
+
+This is **not** a tutorial project. Every decision — folder structure, probe design, multi-env separation, image tagging — reflects production engineering practices.
 
 ---
 
-# Technology Stack
+## Architecture
 
-## Backend
+### Current (Local)
 
-* Python
-* FastAPI
-
-## Containerization
-
-* Docker
-
-## CI/CD
-
-* GitHub Actions
-
-## Orchestration
-
-* Kubernetes
-* AWS EKS
-
-## Container Registry
-
-* Amazon ECR
-
-## DevSecOps
-
-* SonarQube
-* Trivy
-* OPA Gatekeeper
-
-## Monitoring & Observability
-
-* Prometheus
-* Grafana
-
-## AI Layer
-
-* anomaly detection
-* intelligent alert analysis
-* operational recommendations
-
----
-
-# Planned Architecture
-
-```text
+```
 Developer
-   ↓
-GitHub Repository
-   ↓
+    ↓
+FastAPI Backend (Python 3.12)
+    ↓
+Docker Container (multi-stage, non-root)
+    ↓
+K3d Cluster — 1 server + 2 agents
+    ↓
+Traefik Ingress → localhost:8080
+    ↓
+┌─────────────┬──────────────┬─────────────┐
+│  sentinelai │  sentinelai  │ sentinelai  │
+│    -dev     │   -staging   │   -prod     │
+│  1 replica  │  2 replicas  │  3 replicas │
+└─────────────┴──────────────┴─────────────┘
+```
+
+### Planned (Production)
+
+```
+GitHub Push
+    ↓
 GitHub Actions CI/CD
-   ↓
-SonarQube Analysis
-   ↓
-Trivy Security Scan
-   ↓
-OPA Policy Validation
-   ↓
-Docker Image Build
-   ↓
+    ↓
+SonarQube → Trivy → OPA Gatekeeper
+    ↓
 Amazon ECR
-   ↓
-AWS EKS Deployment
-   ↓
-Prometheus Monitoring
-   ↓
-Grafana Dashboards
-   ↓
-AI Insights & Alerts
+    ↓
+AWS EKS (multi-env)
+    ↓
+Prometheus + Grafana
+    ↓
+AI Anomaly Detection Layer
 ```
 
 ---
 
-# Project Roadmap
+## Tech Stack
 
-## Phase 1 — Backend Foundation
-
-### Goals
-
-* [ ] Setup FastAPI backend
-* [ ] Create production-style project structure
-* [ ] Add health endpoint
-* [ ] Add status endpoint
-* [ ] Add metrics endpoint
-* [ ] Add alerts endpoint
-* [ ] Add recommendation endpoint
-* [ ] Configure logging
-* [ ] Configure environment variables
-* [ ] Prepare Docker-ready backend structure
+| Layer | Technology |
+|---|---|
+| Backend | Python, FastAPI, Uvicorn |
+| Containerization | Docker (multi-stage) |
+| Orchestration | Kubernetes, K3d (local), AWS EKS (prod) |
+| CI/CD | GitHub Actions |
+| Container Registry | Amazon ECR |
+| DevSecOps | SonarQube, Trivy, OPA Gatekeeper |
+| Monitoring | Prometheus, Grafana |
+| AI Layer | Anomaly detection, Alert recommendations |
+| IaC | Terraform (Phase 7+) |
 
 ---
 
-## Phase 2 — Dockerization
+## Quick Start
 
-### Goals
+### Prerequisites
 
-* [ ] Create Dockerfile
-* [ ] Build backend Docker image
-* [ ] Run container locally
-* [ ] Configure environment variables in container
-* [ ] Optimize Docker image
-* [ ] Implement non-root container practices
-* [ ] Learn Docker image layers
-* [ ] Test container networking
-* [ ] Prepare workload for Kubernetes
+| Tool | Version |
+|---|---|
+| Python | 3.12+ |
+| Docker | 20.0+ |
+| kubectl | 1.28+ |
+| k3d | 5.0+ (auto-installed) |
 
----
+### 1. Clone the repository
 
-## Phase 3 — Local Kubernetes Setup
+```bash
+git clone https://github.com/Heyyprakhar1/sentinel-ai-platform.git
+cd sentinel-ai-platform
+```
 
-### Goals
+### 2. Setup Python environment
 
-* [ ] Setup Minikube or KIND
-* [ ] Deploy backend locally on Kubernetes
-* [ ] Create Deployment manifests
-* [ ] Create Service manifests
-* [ ] Configure ConfigMaps
-* [ ] Configure Secrets
-* [ ] Setup Ingress controller
-* [ ] Test local Kubernetes networking
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
----
+### 3. Run locally (without Docker)
 
-## Phase 4 — Repository Structuring
+```bash
+uvicorn app.main:app --reload --port 8000
+```
 
-### Goals
+### 4. Create K3d cluster
 
-* [ ] Organize Kubernetes manifests
-* [ ] Create environment separation
-* [ ] Structure GitHub repository properly
-* [ ] Create reusable manifest structure
-* [ ] Improve documentation
+```bash
+make cluster-up
+# Enter cluster name when prompted
+```
 
----
+### 5. Build and import Docker image
 
-## Phase 5 — GitHub Actions CI/CD
+```bash
+make build
+make import-image
+```
 
-### Goals
+### 6. Deploy all environments
 
-* [ ] Setup GitHub Actions workflows
-* [ ] Automate Docker image build
-* [ ] Automate testing pipeline
-* [ ] Automate image push process
-* [ ] Automate Kubernetes deployment
-* [ ] Implement CI/CD best practices
+```bash
+kubectl apply -f k8s/namespaces.yaml
+make deploy-all
+```
 
----
+### 7. Verify
 
-## Phase 6 — DevSecOps Integration
-
-### Goals
-
-* [ ] Setup SonarQube
-* [ ] Add code quality analysis
-* [ ] Setup Trivy vulnerability scanning
-* [ ] Add Docker image scanning
-* [ ] Setup OPA Gatekeeper
-* [ ] Implement Kubernetes security policies
-* [ ] Block insecure deployment patterns
-
----
-
-## Phase 7 — AWS EKS Deployment
-
-### Goals
-
-* [ ] Design AWS VPC architecture
-* [ ] Setup AWS EKS cluster
-* [ ] Configure worker nodes
-* [ ] Configure IAM roles
-* [ ] Setup Amazon ECR
-* [ ] Deploy application to EKS
-* [ ] Configure production ingress
-
----
-
-## Phase 8 — Monitoring & Observability
-
-### Goals
-
-* [ ] Install Prometheus
-* [ ] Configure metrics scraping
-* [ ] Install Grafana
-* [ ] Create monitoring dashboards
-* [ ] Monitor cluster health
-* [ ] Monitor application health
-* [ ] Configure alerting system
-
----
-
-## Phase 9 — AI Insights Layer
-
-### Goals
-
-* [ ] Detect CPU anomalies
-* [ ] Detect pod restart spikes
-* [ ] Generate operational recommendations
-* [ ] Analyze logs intelligently
-* [ ] Create AI-based alert summaries
-* [ ] Add incident analysis features
-
----
-
-## Phase 10 — Optional Frontend Dashboard
-
-### Goals
-
-* [ ] Build lightweight dashboard
-* [ ] Display metrics visually
-* [ ] Show operational alerts
-* [ ] Display AI recommendations
-* [ ] Create monitoring overview UI
-
----
-
-# Current Development Status
-
-## Active Phase
-
-* [x] Project Planning
-* [x] Architecture Planning
-* [x] Technology Stack Finalization
-* [x] Backend Foundation
-* [x] Dockerization
-* [ ] Kubernetes Setup
-* [ ] CI/CD
-* [ ] DevSecOps
-* [ ] AWS EKS Deployment
-* [ ] Monitoring
-* [ ] AI Layer
-
----
-
-# Project Philosophy
-
-This project is intentionally designed to prioritize:
-
-* infrastructure engineering
-* Kubernetes operations
-* DevOps workflows
-* production architecture
-* cloud-native engineering
-* observability practices
-* DevSecOps implementation
-
-Frontend development is intentionally deferred until the platform foundation is stable.
-
----
-
-# Long-Term Objectives
-
-This project aims to strengthen understanding of:
-
-* Docker
-* Kubernetes
-* AWS EKS
-* GitHub Actions
-* DevSecOps workflows
-* monitoring systems
-* observability engineering
-* production deployment practices
-* platform engineering concepts
-
----
-
-# Repository Name
-
-```text
-Repository:
-sentinel-ai-platform
+```bash
+make status
+curl http://localhost:8080/health
 ```
 
 ---
 
-# Project Status
+## API Endpoints
 
-Current Status:
+| Endpoint | Method | Description | K8s Usage |
+|---|---|---|---|
+| `/health` | GET | App liveness check | Liveness probe |
+| `/status` | GET | App readiness check | Readiness probe |
+| `/metrics` | GET | Prometheus metrics | Scrape target |
+| `/alerts` | GET | Alert feed | Core workload |
+| `/recommendation` | GET | AI insight stub | Core workload |
 
-## Planning & Backend Foundation Phase
+---
+
+## Environment Matrix
+
+| Property | Dev | Staging | Prod |
+|---|---|---|---|
+| Namespace | sentinelai-dev | sentinelai-staging | sentinelai-prod |
+| Replicas | 1 | 2 | 3 |
+| Log Level | DEBUG | INFO | WARNING |
+| CPU Request | 50m | 100m | 200m |
+| Memory Request | 64Mi | 128Mi | 256Mi |
+| Image Pull Policy | Never | IfNotPresent | IfNotPresent* |
+
+> *`Always` in prod once ECR is configured (Phase 7)
+
+---
+
+## Makefile Commands
+
+```bash
+# Docker
+make build            # Build Docker image
+make run              # Run container locally
+make stop             # Stop container
+
+# Kubernetes
+make deploy-dev       # Deploy to dev environment
+make deploy-staging   # Deploy to staging environment
+make deploy-prod      # Deploy to prod environment
+make deploy-all       # Deploy all environments
+make status           # Show all environments status
+make status-dev       # Show dev environment status
+make logs-dev         # Show dev pod logs
+
+# Cluster
+make cluster-up       # Create K3d cluster
+make cluster-down     # Delete K3d cluster
+make import-image     # Import image into cluster
+
+# Cleanup
+make clean            # Remove all environments
+```
+
+---
+
+## Project Structure
+
+```
+sentinel-ai-platform/
+├── app/
+│   ├── main.py                  # Entry point
+│   ├── api/
+│   │   └── routes/              # health, metrics, alerts, recommendations
+│   ├── core/
+│   │   ├── config.py            # Env var config (pydantic-settings)
+│   │   └── logging_config.py    # Structured logging
+│   ├── models/
+│   │   └── schemas.py           # Pydantic data contracts
+│   └── services/
+│       ├── alert_service.py
+│       └── recommendation_service.py
+├── k8s/
+│   ├── base/                    # Shared Kubernetes manifests
+│   └── overlays/
+│       ├── dev/
+│       ├── staging/
+│       └── prod/
+├── scripts/
+│   └── k3d-setup.sh             # Cluster setup script
+├── docs/
+│   ├── architecture.md
+│   └── setup.md
+├── .github/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── ISSUE_TEMPLATE/
+├── Dockerfile                   # Multi-stage, non-root
+├── Makefile                     # Common commands
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Roadmap
+
+| Phase | Description | Status |
+|---|---|---|
+| 1 | FastAPI Backend Foundation | ✅ Done |
+| 2 | Docker Containerization | ✅ Done |
+| 3 | Local Kubernetes (K3d) + Multi-env | ✅ Done |
+| 4 | Repository Structure | ✅ Done |
+| 5 | GitHub Actions CI/CD | 🔄 Next |
+| 6 | DevSecOps — SonarQube, Trivy, OPA | ⏳ Pending |
+| 7 | AWS EKS Deployment | ⏳ Pending |
+| 8 | Monitoring — Prometheus + Grafana | ⏳ Pending |
+| 9 | AI Insights Layer | ⏳ Pending |
+| 10 | Optional Frontend Dashboard | ⏳ Pending |
+
+---
+
+## Author
+
+**Prakhar Srivastava** — DevOps Engineer  
+[Portfolio](https://prakharsrivastava-devops.netlify.app) · [LinkedIn](https://www.linkedin.com/in/heyyprakhar1/) · [Hashnode](https://hashnode.com/@heyyprakhar01)
