@@ -8,6 +8,7 @@ spec:
     spec:
       containers:
         - name: sentinelai
+          imagePullPolicy: Never
           resources:
             requests:
               memory: "64Mi"
@@ -15,3 +16,15 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "100m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10

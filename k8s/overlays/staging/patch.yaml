@@ -1,0 +1,32 @@
+kind: Deployment
+apiVersion: apps/v1
+
+metadata:
+  name: sentinelai
+
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: sentinelai
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15

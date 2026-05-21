@@ -1,0 +1,13 @@
+kind: ConfigMap
+apiVersion: v1
+
+metadata:
+  name: sentinelai-config
+  namespace: sentinelai-staging
+
+data:
+  APP_NAME: "SentinelAI"
+  APP_VERSION: "1.0.0"
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "INFO"
+  PORT: "8000"
