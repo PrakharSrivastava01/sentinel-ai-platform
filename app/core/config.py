@@ -1,6 +1,7 @@
-#app/core/config.py
+# app/core/config.py
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "SentinelAI"
@@ -9,7 +10,6 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     PORT: int = 8000
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 settings = Settings()
