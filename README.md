@@ -4,11 +4,14 @@
 
 **AI-Powered DevSecOps Monitoring Platform**
 
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-K3d%20%7C%20EKS-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://kubernetes.io)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?style=flat-square&logo=fastapi)
+![Docker](https://img.shields.io/badge/Docker-29.4-blue?style=flat-square&logo=docker)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-1.31-blue?style=flat-square&logo=kubernetes)
+![K3d](https://img.shields.io/badge/K3d-5.x-orange?style=flat-square)
+![AWS EKS](https://img.shields.io/badge/AWS-EKS-orange?style=flat-square&logo=amazonaws)
+![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-black?style=flat-square&logo=githubactions)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 *A backend-first, infrastructure-driven platform built to demonstrate production DevSecOps engineering — containerization, multi-environment Kubernetes orchestration, CI/CD automation, security scanning, and observability.*
 
