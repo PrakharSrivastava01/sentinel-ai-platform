@@ -71,7 +71,7 @@ GitHub Push
      ▼
 GitHub Actions CI/CD Pipeline
      │
-     ├── SonarQube  (static analysis)
+     ├── SonarCloud (static analysis)
      ├── Trivy      (container vulnerability scan)
      └── OPA Gatekeeper (policy enforcement)
      │
@@ -96,13 +96,37 @@ AWS EKS  (multi-environment cluster)
 | Orchestration | Kubernetes, K3d (local) | ✅ Implemented |
 | Config Management | Kustomize (base + overlays) | ✅ Implemented |
 | Automation | Makefile | ✅ Implemented |
-| CI/CD | GitHub Actions | ⏳ Phase 5 |
+| CI/CD | GitHub Actions | ✅ Implemented |
+| Code Quality | SonarCloud | ✅ Implemented |
+| Security Scanning | Trivy (CRITICAL fail gate) | ✅ Implemented |
+| Policy Enforcement | OPA Gatekeeper | ✅ Implemented |
 | Container Registry | Amazon ECR | ⏳ Phase 7 |
-| Security Scanning | SonarQube, Trivy | ⏳ Phase 6 |
-| Policy Enforcement | OPA Gatekeeper | ⏳ Phase 6 |
 | Monitoring | Prometheus, Grafana | ⏳ Phase 8 |
 | Cloud Orchestration | AWS EKS | ⏳ Phase 7 |
 | AI Layer | Anomaly detection, recommendations | ⏳ Phase 9 |
+
+---
+
+## CI/CD Pipeline
+
+```
+push to main
+     │
+     ▼
+  test job
+  ├── Python 3.12 setup
+  ├── Install dependencies
+  └── pytest (18 tests)
+     │
+     ├──────────────────┐
+     ▼                  ▼
+sonarcloud          docker-build
+(code quality)      (image build)
+                         │
+                         ▼
+                    trivy-scan
+                    (CRITICAL CVE gate)
+```
 
 ---
 
@@ -137,6 +161,20 @@ The `/health` and `/status` endpoints were designed for Kubernetes from the star
 
 ---
 
+## OPA Gatekeeper Policies
+
+Three admission control policies are enforced across all SentinelAI namespaces:
+
+| Policy | Rule | Enforcement |
+|---|---|---|
+| `require-non-root` | All containers must run as non-root user | deny |
+| `require-resource-limits` | All containers must define CPU and memory limits | deny |
+| `ban-latest-tag` | `:latest` image tag is not permitted | deny |
+
+> Policies are installed on local K3d cluster. Full admission webhook enforcement validated on AWS EKS in Phase 7.
+
+---
+
 ## Project Structure
 
 ```
@@ -166,10 +204,25 @@ sentinel-ai-platform/
 │   │   ├── service.yaml
 │   │   ├── ingress.yaml            # Traefik ingress
 │   │   └── kustomization.yaml
-│   └── overlays/
-│       ├── dev/                    # 1 replica, DEBUG, Never pull
-│       ├── staging/                # 2 replicas, INFO, IfNotPresent
-│       └── prod/                   # 3 replicas, WARNING, Always
+│   ├── overlays/
+│   │   ├── dev/                    # 1 replica, DEBUG, Never pull
+│   │   ├── staging/                # 2 replicas, INFO, IfNotPresent
+│   │   └── prod/                   # 3 replicas, WARNING, Always
+│   └── gatekeeper/
+│       ├── templates/              # ConstraintTemplates (Rego logic)
+│       │   ├── require-nonroot.yaml
+│       │   ├── require-resource-limits.yaml
+│       │   └── ban-latest-tag.yaml
+│       └── constraints/            # Policy enforcement rules
+│           ├── require-non-root-constraint.yaml
+│           ├── require-resource-limits-constraint.yaml
+│           └── ban-latest-tag-constraint.yaml
+│
+├── tests/
+│   ├── test_health.py              # 5 tests — /health endpoint
+│   ├── test_status.py              # 4 tests — /status endpoint
+│   ├── test_alerts.py              # 4 tests — /alerts endpoint
+│   └── test_recommendations.py    # 5 tests — /recommendation endpoint
 │
 ├── scripts/
 │   └── k3d-setup.sh               # Cluster creation with prereq checks
@@ -179,6 +232,8 @@ sentinel-ai-platform/
 │   └── setup.md
 │
 ├── .github/
+│   ├── workflows/
+│   │   └── ci.yml                 # CI pipeline — test, sonarcloud, trivy
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── ISSUE_TEMPLATE/
 │       └── bug_report.md
@@ -318,6 +373,12 @@ kubectl get all -n sentinelai-prod
 # Ingress status
 kubectl get ingress -A | grep sentinelai
 
+# OPA Gatekeeper policies
+kubectl get constrainttemplates
+kubectl get requirenonroot
+kubectl get requireresourcelimits
+kubectl get banlatesttag
+
 # Pod logs
 kubectl logs -l app=sentinelai -n sentinelai-dev --tail=50
 
@@ -361,8 +422,8 @@ Key decisions:
 | 2 | Docker containerization | ✅ Complete |
 | 3 | Local Kubernetes — K3d, multi-env, Ingress | ✅ Complete |
 | 4 | Repository structure and documentation | ✅ Complete |
-| 5 | GitHub Actions CI/CD pipeline | ✅ Complete  |
-| 6 | DevSecOps — SonarQube, Trivy, OPA Gatekeeper | ⏳ Pending |
+| 5 | GitHub Actions CI/CD pipeline | ✅ Complete |
+| 6 | DevSecOps — SonarCloud, Trivy, OPA Gatekeeper | ✅ Complete |
 | 7 | AWS EKS deployment + ECR | ⏳ Pending |
 | 8 | Monitoring — Prometheus + Grafana | ⏳ Pending |
 | 9 | AI anomaly detection and insights layer | ⏳ Pending |
