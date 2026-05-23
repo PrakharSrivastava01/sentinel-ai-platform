@@ -32,8 +32,30 @@ jobs:
             - name: Run tests
               run: |
                   pytest tests/
+            
+    sonarcloud:
+        needs: test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - name: SonarCloud Scan
+              uses: Sonarsource/sonarcloud-github-action@master
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  args: >
+                      -Dsonar.projectKey=Heyyprakhar1_sentinel-ai-platform
+                      -Dsonar.organization=heyyprakhar1
+                      -Dsonar.sources=app
+                      -Dsonar.tests=tests
+                      -Dsonar.python.version=3.12
 
     docker-build:
+
         needs: test
         runs-on: ubuntu-latest
         steps:
@@ -44,3 +66,22 @@ jobs:
               run: |
                   docker build -t sentinelai:ci .
 
+    trivy-scan:
+        needs: docker-build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Build Docker Image for scanning
+              run: |
+                docker build -t sentinelai:ai .
+
+            - name: Run Trivy Scan
+              uses: aquasecurity/trivy-action@master
+              with:
+                image-ref: sentinelai:ai
+                format: 'table'
+                exit-code: '1'
+                severity: 'CRITICAL'
+                ignore-unfixed: true
