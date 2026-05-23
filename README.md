@@ -360,7 +360,7 @@ Key decisions:
 | 2 | Docker containerization | ✅ Complete |
 | 3 | Local Kubernetes — K3d, multi-env, Ingress | ✅ Complete |
 | 4 | Repository structure and documentation | ✅ Complete |
-| 5 | GitHub Actions CI/CD pipeline | 🔄 In Progress |
+| 5 | GitHub Actions CI/CD pipeline | ✅ Complete  |
 | 6 | DevSecOps — SonarQube, Trivy, OPA Gatekeeper | ⏳ Pending |
 | 7 | AWS EKS deployment + ECR | ⏳ Pending |
 | 8 | Monitoring — Prometheus + Grafana | ⏳ Pending |
