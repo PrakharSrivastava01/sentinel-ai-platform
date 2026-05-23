@@ -9,6 +9,8 @@ on:
         branches: [main]
         paths-ignore:
             - '*.md'
+permissions:
+    contents: read
     
 jobs:
     test:
