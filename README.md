@@ -12,6 +12,7 @@
 ![AWS EKS](https://img.shields.io/badge/AWS-EKS-orange?style=flat-square&logo=amazonaws)
 ![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-black?style=flat-square&logo=githubactions)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+[![CI](https://github.com/Heyyprakhar1/sentinel-ai-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Heyyprakhar1/sentinel-ai-platform/actions/workflows/ci.yml)
 
 *A backend-first, infrastructure-driven platform built to demonstrate production DevSecOps engineering — containerization, multi-environment Kubernetes orchestration, CI/CD automation, security scanning, and observability.*
 
