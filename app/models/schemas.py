@@ -26,7 +26,11 @@ class AlertsResponse(BaseModel):
     alerts: list[Alert]
 
 class RecommendationResponse(BaseModel):
-    alert_id: Optional[str]
+    model_config = {"populate_by_name": True}
+
+    alert_id: Optional[str] = None
     recommendation: str
     confidence: str
+    anomaly_detected: bool = False
+    anomaly_score: float = 0.0
     generated_at: str
