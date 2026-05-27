@@ -86,7 +86,15 @@ AWS EKS v1.35  (ap-south-1)
      ├── VPC — 2 public + 2 private subnets
      └── IAM roles — cluster + node group
      │
-     ├── Prometheus + Grafana  (observability — Phase 8)
+     ├── Observability Stack (✅ Phase 8)
+     │   ├── kube-prometheus-stack (Helm)
+     │   ├── ServiceMonitor — custom metrics scraping
+     │   ├── PrometheusRule — 3 alert rules
+     │   ├── Alertmanager — Slack routing (warning + critical)
+     │   ├── Grafana — cluster + application dashboards
+     │   ├── HPA — CPU/Memory autoscaling (2–10 replicas)
+     │   ├── PDB — zero downtime disruption budget
+     │   └── NetworkPolicy — zero trust ingress/egress
      └── AI Anomaly Detection  (insights layer — Phase 9)
 ```
 
@@ -104,11 +112,16 @@ AWS EKS v1.35  (ap-south-1)
 | CI/CD | GitHub Actions | ✅ Implemented |
 | Code Quality | SonarCloud | ✅ Implemented |
 | Security Scanning | Trivy (CRITICAL fail gate) | ✅ Implemented |
-| Policy Enforcement | OPA Gatekeeper | ✅ Implemented |
+| Policy Enforcement | OPA Gatekeeper (3 policies) | ✅ Implemented |
 | Infrastructure as Code | Terraform v1.15 | ✅ Implemented |
 | Container Registry | Amazon ECR | ✅ Implemented |
 | Cloud Orchestration | AWS EKS v1.35 | ✅ Implemented |
-| Monitoring | Prometheus, Grafana | ⏳ Phase 8 |
+| Metrics Collection | Prometheus + ServiceMonitor | ✅ Implemented |
+| Dashboards | Grafana (custom + cluster dashboards) | ✅ Implemented |
+| Alerting | PrometheusRule + Alertmanager (Slack) | ✅ Implemented |
+| Autoscaling | HPA (CPU 70% / Memory 80%, max 10) | ✅ Implemented |
+| Resilience | PodDisruptionBudget (minAvailable: 1) | ✅ Implemented |
+| Network Security | NetworkPolicy (zero trust) | ✅ Implemented |
 | AI Layer | Anomaly detection, recommendations | ⏳ Phase 9 |
 
 ---
@@ -133,6 +146,30 @@ sonarcloud          docker-build
                     trivy-scan
                     (CRITICAL CVE gate)
 ```
+
+---
+
+## Observability Stack
+
+SentinelAI exposes custom Prometheus metrics from `/metrics` — scraped automatically via a ServiceMonitor CRD. Three Grafana dashboards are live: cluster-level resource usage, per-pod breakdown, and a custom SentinelAI application dashboard.
+
+### Custom Metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `sentinelai_requests_total` | Counter | Total API requests served |
+| `sentinelai_cpu_usage_percent` | Gauge | Application CPU usage % |
+| `sentinelai_memory_usage_percent` | Gauge | Application memory usage % |
+
+### Alert Rules
+
+| Alert | Condition | Severity |
+|---|---|---|
+| `SentinelAIHighCPU` | CPU > 80% for 2m | warning |
+| `SentinelAIHighMemory` | Memory > 85% for 2m | critical |
+| `SentinelAIDown` | Pod unreachable for 1m | critical |
+
+Alerts route to Slack via Alertmanager — `#sentinelai-alerts` for warnings, `#sentinelai-critical` for critical.
 
 ---
 
@@ -233,20 +270,27 @@ sentinel-ai-platform/
 │   │   ├── deployment.yaml
 │   │   ├── service.yaml
 │   │   ├── ingress.yaml            # Traefik ingress
+│   │   ├── hpa.yaml                # HPA — CPU 70% / Memory 80%, max 10 replicas
+│   │   ├── pdb.yaml                # PodDisruptionBudget — minAvailable: 1
+│   │   ├── networkpolicy.yaml      # Zero trust — restrict ingress/egress by namespace
 │   │   └── kustomization.yaml
 │   ├── overlays/
 │   │   ├── dev/                    # 1 replica, DEBUG, Never pull
 │   │   ├── staging/                # 2 replicas, INFO, IfNotPresent
 │   │   └── prod/                   # 3 replicas, WARNING, Always
-│   └── gatekeeper/
-│       ├── templates/              # ConstraintTemplates (Rego logic)
-│       │   ├── require-nonroot.yaml
-│       │   ├── require-resource-limits.yaml
-│       │   └── ban-latest-tag.yaml
-│       └── constraints/            # Policy enforcement rules
-│           ├── require-non-root-constraint.yaml
-│           ├── require-resource-limits-constraint.yaml
-│           └── ban-latest-tag-constraint.yaml
+│   ├── gatekeeper/
+│   │   ├── templates/              # ConstraintTemplates (Rego logic)
+│   │   │   ├── require-nonroot.yaml
+│   │   │   ├── require-resource-limits.yaml
+│   │   │   └── ban-latest-tag.yaml
+│   │   └── constraints/            # Policy enforcement rules
+│   │       ├── require-non-root-constraint.yaml
+│   │       ├── require-resource-limits-constraint.yaml
+│   │       └── ban-latest-tag-constraint.yaml
+│   └── monitoring/                 # Observability manifests
+│       ├── servicemonitor.yaml     # Prometheus scrape config for SentinelAI
+│       ├── prometheusrule.yaml     # Alert rules — CPU, Memory, Down
+│       └── alertmanager.yaml       # Slack routing — warning + critical channels
 │
 ├── terraform/                      # AWS infrastructure as code
 │   ├── backend.tf                  # S3 remote state config
@@ -297,6 +341,7 @@ sentinel-ai-platform/
 | Docker | 20.0+ | Daemon must be running |
 | kubectl | 1.28+ | |
 | k3d | 5.0+ | Auto-installed by setup script |
+| Helm | 3.0+ | For kube-prometheus-stack |
 | Terraform | 1.10+ | For AWS infrastructure |
 | AWS CLI | 2.0+ | Configured with credentials |
 
@@ -352,7 +397,29 @@ kubectl apply -f k8s/namespaces.yaml
 make deploy-all
 ```
 
-### 8. Verify
+### 8. Deploy observability stack
+
+```bash
+# Install kube-prometheus-stack
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
+
+# Apply SentinelAI monitoring manifests
+kubectl apply -f k8s/monitoring/servicemonitor.yaml
+kubectl apply -f k8s/monitoring/prometheusrule.yaml
+kubectl apply -f k8s/monitoring/alertmanager.yaml
+
+# Access Grafana
+kubectl port-forward svc/prometheus-grafana 3001:80 -n monitoring &
+# http://localhost:3001 — admin / prom-operator
+
+# Access Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring &
+# http://localhost:9090
+```
+
+### 9. Verify
 
 ```bash
 make status
@@ -421,6 +488,17 @@ kubectl get requirenonroot
 kubectl get requireresourcelimits
 kubectl get banlatesttag
 
+# Autoscaling + resilience
+kubectl get hpa -n sentinelai-dev
+kubectl get pdb -n sentinelai-dev
+kubectl get networkpolicy -n sentinelai-dev
+
+# Observability
+kubectl get servicemonitor -n monitoring
+kubectl get prometheusrule -n monitoring
+kubectl port-forward svc/prometheus-grafana 3001:80 -n monitoring &
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring &
+
 # Pod logs
 kubectl logs -l app=sentinelai -n sentinelai-dev --tail=50
 
@@ -467,7 +545,7 @@ Key decisions:
 | 5 | GitHub Actions CI/CD pipeline | ✅ Complete |
 | 6 | DevSecOps — SonarCloud, Trivy, OPA Gatekeeper | ✅ Complete |
 | 7 | AWS EKS deployment + ECR via Terraform | ✅ Complete |
-| 8 | Monitoring — Prometheus + Grafana | ⏳ Pending |
+| 8 | Observability — Prometheus, Grafana, Alerting, HPA, PDB, NetworkPolicy | ✅ Complete |
 | 9 | AI anomaly detection and insights layer | ⏳ Pending |
 | 10 | Frontend observability dashboard | ⏳ Optional |
 
