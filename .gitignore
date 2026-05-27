@@ -12,3 +12,4 @@ terraform.tfvars
 *.tfstate.backup
 frontend/node_modules/
 package-lock.json
+.env

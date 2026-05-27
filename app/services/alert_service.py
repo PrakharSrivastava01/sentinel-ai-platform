@@ -1,13 +1,10 @@
-# app/services/alert_service.py
 import psutil
 from app.models.schemas import Alert
 from datetime import datetime, timezone
 
-
 def get_real_alerts() -> list[Alert]:
     alerts = []
     now = datetime.now(timezone.utc).isoformat()
-
     cpu = psutil.cpu_percent()
     memory = psutil.virtual_memory().percent
 
@@ -55,7 +52,3 @@ def get_real_alerts() -> list[Alert]:
         ))
 
     return alerts
-
-
-def get_mock_alerts() -> list[Alert]:
-    return get_real_alerts()

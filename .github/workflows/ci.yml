@@ -43,7 +43,7 @@ jobs:
               with:
                   fetch-depth: 0
             - name: SonarCloud Scan
-              uses: Sonarsource/sonarcloud-github-action@master
+              uses: Sonarsource/sonarcloud-github-action@v3.1.0
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,22 +67,11 @@ jobs:
               run: |
                   docker build -t sentinelai:ci .
 
-    trivy-scan:
-        needs: docker-build
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
-
-            - name: Build Docker Image for scanning
-              run: |
-                docker build -t sentinelai:ai .
-
             - name: Run Trivy Scan
-              uses: aquasecurity/trivy-action@master
+              uses: aquasecurity/trivy-action@0.20.0
               with:
-                image-ref: sentinelai:ai
-                format: 'table'
+                image-ref: sentinelai:ci
+                format: table
                 exit-code: '1'
-                severity: 'CRITICAL'
+                severity: CRITICAL
                 ignore-unfixed: true

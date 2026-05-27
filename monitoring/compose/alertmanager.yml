@@ -1,0 +1,16 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'null'
+
+receivers:
+  - name: 'null'
+
+  # Uncomment for Slack notifications:
+  # - name: 'slack'
+  #   slack_configs:
+  #     - api_url: '${SLACK_WEBHOOK_URL}'
+  #       channel: '#alerts'
+  #       title: 'SentinelAI Alert'
+  #       text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'

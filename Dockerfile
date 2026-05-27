@@ -2,17 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+RUN groupadd -r sentinel && useradd -r -g sentinel sentinel
+
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN groupadd -r sentinel && useradd -r -g sentinel sentinel
-
-RUN chown -R sentinel:sentinel /app
+COPY --chown=sentinel:sentinel app/ ./app
 
 USER sentinel
-
-COPY app/ ./app
 
 EXPOSE 8000
 

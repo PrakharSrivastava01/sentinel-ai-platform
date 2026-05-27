@@ -1,5 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL || '/api'
-const PROM = import.meta.env.VITE_PROM_URL || 'http://localhost:9090'
+const PROM = import.meta.env.VITE_PROM_URL || '/prometheus'  // localhost:9090 → /prometheus
 
 async function get(path) {
   const res = await fetch(`${BASE}${path}`)
