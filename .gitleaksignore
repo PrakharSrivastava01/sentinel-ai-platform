@@ -1,0 +1,6 @@
+# REASON: Example/placeholder password was committed in .env.example
+# during initial Docker Compose setup (feat: add Docker Compose support).
+# Password has since been rotated and replaced with a placeholder.
+# Production secrets are managed via GitHub Secrets only.
+# Affected commit: 1b08517
+1b08517:.env.example
