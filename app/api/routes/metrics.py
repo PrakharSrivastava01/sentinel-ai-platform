@@ -11,6 +11,6 @@ MEMORY_USAGE = Gauge("sentinelai_memory_usage_percent", "Memory usage percent")
 @router.get("/metrics")
 def metrics():
     REQUEST_COUNT.inc()
-    CPU_USAGE.set(psutil.cpu_percent())
+    CPU_USAGE.set(psutil.cpu_percent(interval=0.1))
     MEMORY_USAGE.set(psutil.virtual_memory().percent)
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

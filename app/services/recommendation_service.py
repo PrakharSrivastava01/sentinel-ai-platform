@@ -35,7 +35,7 @@ def build_recommendation(result: dict, cpu: float, memory: float) -> str:
 
 
 def get_recommendation(alert_id: str = None) -> RecommendationResponse:
-    cpu = psutil.cpu_percent()
+    cpu = psutil.cpu_percent(interval=0.1)
     memory = psutil.virtual_memory().percent
 
     result = detector.analyze(cpu, memory)
