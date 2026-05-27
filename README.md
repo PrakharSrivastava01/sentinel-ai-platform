@@ -10,6 +10,7 @@
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.31-blue?style=flat-square&logo=kubernetes)
 ![Terraform](https://img.shields.io/badge/Terraform-1.15-purple?style=flat-square&logo=terraform)
 ![AWS EKS](https://img.shields.io/badge/AWS-EKS-orange?style=flat-square&logo=amazonaws)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
 ![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-black?style=flat-square&logo=githubactions)
 [![CI](https://github.com/Heyyprakhar1/sentinel-ai-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Heyyprakhar1/sentinel-ai-platform/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Heyyprakhar1_sentinel-ai-platform&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Heyyprakhar1_sentinel-ai-platform)
@@ -66,10 +67,10 @@ GitHub Push
      │
      ▼
 GitHub Actions CI/CD
-     ├── pytest (21 tests)
-     ├── SonarCloud — static analysis
-     ├── Trivy — CRITICAL CVE gate
-     └── OPA Gatekeeper — policy enforcement
+     ├── pytest (22 tests, 70% coverage gate)
+     ├── SonarCloud — static analysis + quality gate
+     ├── Docker build
+     └── Trivy — CRITICAL CVE fail gate
      │
      ▼
 Amazon ECR
@@ -79,15 +80,18 @@ AWS EKS v1.35 (ap-south-1)
      ├── VPC — 2 public + 2 private subnets
      ├── Node Group — t3.medium × 2
      │
+     ├── Security
+     │   ├── OPA Gatekeeper — 3 admission policies
+     │   └── NetworkPolicy — zero trust
+     │
      ├── Observability
      │   ├── kube-prometheus-stack (Helm)
      │   ├── ServiceMonitor — scrapes /metrics
-     │   ├── PrometheusRule — 3 alert rules
+     │   ├── PrometheusRule — CPU / Memory / Down alerts
      │   ├── Alertmanager — Slack routing
      │   ├── Grafana — cluster + app dashboards
      │   ├── HPA — scales 2–10 replicas
-     │   ├── PDB — minAvailable: 1
-     │   └── NetworkPolicy — zero trust
+     │   └── PDB — minAvailable: 1
      │
      ├── AI Layer
      │   └── Z-score anomaly engine (20-reading baseline)
@@ -104,6 +108,7 @@ AWS EKS v1.35 (ap-south-1)
 |---|---|---|
 | Backend | Python 3.12, FastAPI, Uvicorn | ✅ Done |
 | Containerization | Docker (multi-stage, non-root) | ✅ Done |
+| Local Dev Stack | Docker Compose (backend + frontend + Prometheus + Grafana) | ✅ Done |
 | Orchestration | Kubernetes, K3d (local), AWS EKS (prod) | ✅ Done |
 | Config Management | Kustomize (base + overlays) | ✅ Done |
 | Automation | Makefile | ✅ Done |
@@ -121,7 +126,7 @@ AWS EKS v1.35 (ap-south-1)
 | Resilience | PodDisruptionBudget (minAvailable: 1) | ✅ Done |
 | Network Security | NetworkPolicy (zero trust) | ✅ Done |
 | AI Layer | Z-score anomaly detection + recommendations | ✅ Done |
-| Frontend | React + Vite — live metrics dashboard | ✅ Done |
+| Frontend | React 18 + Vite — live metrics dashboard | ✅ Done |
 
 ---
 
@@ -146,9 +151,9 @@ sentinel-ai-platform/
 │   └── services/
 │       ├── alert_service.py
 │       ├── recommendation_service.py
-│       └── anomaly_detector.py       # Z-score engine (Phase 9)
+│       └── anomaly_detector.py       # Z-score engine
 │
-├── frontend/                         # React dashboard (Phase 10)
+├── frontend/                         # React dashboard
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── StatusBar.jsx         # Top bar — live health status
@@ -162,8 +167,10 @@ sentinel-ai-platform/
 │   │   │   └── usePolling.js         # Polling + history hooks
 │   │   └── lib/
 │   │       └── api.js                # API client + Prometheus queries
-│   ├── Dockerfile                    # nginx:1.27-alpine, non-root
-│   └── nginx.conf                    # Reverse proxy to backend
+│   ├── Dockerfile                    # K8s deploy — nginx:1.27-alpine, non-root
+│   ├── Dockerfile.compose            # Docker Compose variant
+│   ├── nginx.conf                    # Reverse proxy to backend
+│   └── nginx.compose.conf            # Compose variant nginx config
 │
 ├── k8s/
 │   ├── namespaces.yaml               # dev / staging / prod namespaces
@@ -180,23 +187,20 @@ sentinel-ai-platform/
 │   │   ├── staging/                  # 2 replicas, INFO, IfNotPresent
 │   │   └── prod/                     # 3 replicas, WARNING, Always
 │   ├── frontend/
-│   │   └── dashboard.yaml            # Dashboard Deployment + Service + Ingress + HPA + PDB + NetPol
+│   │   └── dashboard.yaml            # Deployment + Service + Ingress + HPA + PDB + NetPol
 │   ├── gatekeeper/
 │   │   ├── templates/                # ConstraintTemplates (Rego)
-│   │   │   ├── require-nonroot.yaml
-│   │   │   ├── require-resource-limits.yaml
-│   │   │   └── ban-latest-tag.yaml
 │   │   └── constraints/              # Policy enforcement
 │   └── monitoring/
 │       ├── servicemonitor.yaml       # Prometheus scrape config
 │       ├── prometheusrule.yaml       # CPU / Memory / Down alerts
 │       └── alertmanager.yaml         # Slack routing
 │
+├── monitoring/
+│   └── compose/                      # Prometheus + Alertmanager configs for Docker Compose
+│
 ├── terraform/
 │   ├── backend.tf                    # S3 remote state
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
 │   ├── vpc.tf                        # VPC, subnets, IGW, route tables
 │   ├── iam.tf                        # Cluster + node group roles
 │   ├── eks.tf                        # EKS cluster + node group
@@ -206,6 +210,7 @@ sentinel-ai-platform/
 │   ├── test_health.py                # 5 tests
 │   ├── test_status.py                # 4 tests
 │   ├── test_alerts.py                # 4 tests
+│   ├── test_api.py                   # 2 smoke tests
 │   └── test_recommendations.py      # 8 tests (includes anomaly scenarios)
 │
 ├── scripts/
@@ -216,12 +221,11 @@ sentinel-ai-platform/
 │   └── setup.md
 │
 ├── .github/
-│   ├── workflows/
-│   │   └── ci.yml
+│   ├── workflows/ci.yml
 │   ├── PULL_REQUEST_TEMPLATE.md
-│   └── ISSUE_TEMPLATE/
-│       └── bug_report.md
+│   └── ISSUE_TEMPLATE/bug_report.md
 │
+├── docker-compose.yml                # Full local stack — backend + frontend + Prometheus + Grafana
 ├── Dockerfile                        # Backend — multi-stage, non-root
 ├── Makefile
 ├── requirements.txt
@@ -232,8 +236,6 @@ sentinel-ai-platform/
 ---
 
 ## Prerequisites
-
-Before you start, make sure these are installed:
 
 | Tool | Version | Why |
 |---|---|---|
@@ -248,69 +250,84 @@ Before you start, make sure these are installed:
 
 ---
 
-## Local Setup — Step by Step
+## Quickstart — Docker Compose
 
-### 1. Clone the repo
+The fastest way to run the full stack locally — no Kubernetes needed.
 
 ```bash
 git clone https://github.com/Heyyprakhar1/sentinel-ai-platform.git
 cd sentinel-ai-platform
+
+cp .env.example .env
+# Set GRAFANA_ADMIN_PASSWORD in .env
+
+docker compose up -d
 ```
 
-### 2. Set up Python environment
+What starts:
+
+| Service | URL |
+|---|---|
+| Backend API | http://localhost:8000 |
+| Frontend Dashboard | http://localhost:5173 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+| Alertmanager | http://localhost:9093 |
 
 ```bash
+# Check everything is up
+docker compose ps
+
+# Tail logs
+docker compose logs -f sentinelai-backend
+
+# Tear down
+docker compose down
+```
+
+---
+
+## Local Kubernetes Setup
+
+### 1. Clone and set up Python env
+
+```bash
+git clone https://github.com/Heyyprakhar1/sentinel-ai-platform.git
+cd sentinel-ai-platform
+
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Run the backend locally (no Docker needed)
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Swagger UI will be live at `http://localhost:8000/docs` — you can hit all endpoints from there.
-
-### 4. Run tests
+### 2. Run tests
 
 ```bash
 pytest tests/ -v
-# Should see 21 passed
+# 22 passed
 ```
 
-### 5. Build Docker image
+### 3. Build Docker image
 
 ```bash
 make build
-# Builds sentinelai:1.0.0
 ```
 
-### 6. Create K3d cluster
+### 4. Create K3d cluster and deploy
 
 ```bash
 make cluster-up
-# Script will prompt for cluster name
-```
-
-### 7. Import image and deploy
-
-```bash
 make import-image
 
 kubectl apply -f k8s/namespaces.yaml
 make deploy-all
+make status
 ```
 
-### 8. Verify everything is running
+### 5. Hit the API
 
 ```bash
-make status
-# Shows all 3 environments
-
 curl http://localhost:8080/health
-curl http://localhost:8080/alerts
 curl http://localhost:8080/recommendation
 ```
 
@@ -318,131 +335,88 @@ curl http://localhost:8080/recommendation
 
 ## Running the Frontend Dashboard
 
-The dashboard connects to the backend and Prometheus. You need both running first.
-
-### Step 1 — Port-forward the backend
-
 ```bash
+# Terminal 1 — backend port-forward
 kubectl port-forward svc/dev-sentinelai-service 8001:80 -n sentinelai-dev
-# Keep this terminal open
-```
 
-### Step 2 — Start the dashboard
-
-```bash
+# Terminal 2 — frontend
 cd frontend
 npm install
 VITE_API_URL=http://localhost:8001 npm run dev
 ```
 
-Open `http://localhost:5173` — you'll see live CPU, memory, anomaly scores, and alerts.
+Open `http://localhost:5173`.
 
-### Step 3 — Add K8s metrics (optional)
-
-If you also want pod-level metrics from Prometheus:
+For K8s pod-level metrics in the dashboard:
 
 ```bash
-# In a separate terminal
+# Terminal 3 — Prometheus port-forward
 kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring
 ```
 
-Then restart the dashboard with:
+Then restart the frontend with:
 
 ```bash
 VITE_API_URL=http://localhost:8001 VITE_PROM_URL=http://localhost:9090 npm run dev
 ```
 
-The K8s Resources panel at the bottom will populate with node CPU and per-pod bars.
-
 ---
 
-## Setting Up the Observability Stack
+## Observability Stack
 
 ```bash
-# Add Prometheus community Helm repo
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-# Install kube-prometheus-stack
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace \
   --set grafana.adminPassword=sentinel@123 \
   --set prometheus.prometheusSpec.retention=7d
 
-# Wait for pods to be ready
 kubectl get pods -n monitoring -w
 
-# Apply SentinelAI monitoring manifests
 kubectl apply -f k8s/monitoring/servicemonitor.yaml
 kubectl apply -f k8s/monitoring/prometheusrule.yaml
 kubectl apply -f k8s/monitoring/alertmanager.yaml
 ```
 
-Access Grafana:
-
-```bash
-kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
-# http://localhost:3000 → admin / sentinel@123
-```
-
-Access Prometheus:
-
-```bash
-kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring
-# http://localhost:9090
-```
+| Tool | Access |
+|---|---|
+| Grafana | `kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring` → http://localhost:3000 (admin / sentinel@123) |
+| Prometheus | `kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring` → http://localhost:9090 |
 
 Grafana dashboard IDs to import: `15757` (cluster overview), `1860` (node exporter), `6417` (pod resources).
 
 ---
 
-## AWS EKS Deployment (Terraform)
-
-This is optional — the whole platform runs fine locally on K3d. EKS is Phase 7 and costs money to run.
+## AWS EKS Deployment
 
 ```bash
 cd terraform
-
-# Initialize — downloads providers, configures S3 backend
 terraform init
-
-# Preview what will be created
 terraform plan
-
-# Create everything (~10 minutes)
 terraform apply -auto-approve
-```
 
-What gets created: VPC, subnets, EKS cluster (v1.35), node group (t3.medium × 2), ECR repository, IAM roles, S3 remote state.
-
-Connect kubectl to the new cluster:
-
-```bash
+# Connect kubectl
 aws eks update-kubeconfig --region ap-south-1 --name sentinelai-cluster
 kubectl get nodes
-# Should see 2 nodes in Ready state
-```
 
-When you're done:
-
-```bash
+# Destroy when done
 terraform destroy -auto-approve
 ```
 
 ---
 
-## API Endpoints
+## API Reference
 
-| Endpoint | Method | Description | Kubernetes Role |
+| Endpoint | Method | Description | K8s Role |
 |---|---|---|---|
-| `/health` | GET | Liveness check — returns app name, version, status | Liveness probe |
-| `/status` | GET | Readiness check — returns uptime, environment | Readiness probe |
+| `/health` | GET | App name, version, status | Liveness probe |
+| `/status` | GET | Uptime, environment | Readiness probe |
 | `/metrics` | GET | Prometheus-format metrics | Scrape target |
-| `/alerts` | GET | Active alert feed with severity levels | Core workload |
-| `/recommendation` | GET | AI anomaly score + recommendation text | Core workload |
-
-Quick test once running:
+| `/alerts` | GET | Active alerts with severity | Core workload |
+| `/recommendation` | GET | Z-score + recommendation text | Core workload |
 
 ```bash
 curl http://localhost:8000/health | python3 -m json.tool
@@ -455,37 +429,35 @@ curl http://localhost:8000/recommendation | python3 -m json.tool
 
 The `/recommendation` endpoint runs a Z-score engine on the last 20 metric readings.
 
-- Baseline kicks in after 5 readings (before that, confidence is low)
-- Z-score above 2.0 → warning
-- Z-score above 3.0 → critical
-- Confidence level (low/medium/high) derived from Z-score magnitude
-- Recommendation text is generated dynamically based on which metric triggered
+- Baseline activates after 5 readings
+- Z-score > 2.0 → warning
+- Z-score > 3.0 → critical
+- Confidence (low/medium/high) derived from Z-score magnitude
+- Recommendation text generated dynamically based on which metric triggered
 
-This means the first minute of uptime will show low confidence — that's expected, not a bug.
+Low confidence during the first ~30 seconds of uptime is expected — the baseline is still building.
 
 ---
 
 ## Alert Rules
 
-| Alert | Fires When | Severity |
+| Alert | Condition | Severity |
 |---|---|---|
 | `SentinelAIHighCPU` | CPU > 80% for 2 minutes | warning |
 | `SentinelAIHighMemory` | Memory > 85% for 2 minutes | critical |
 | `SentinelAIDown` | Pod unreachable for 1 minute | critical |
 
-Alerts route to Slack via Alertmanager — `#sentinelai-alerts` for warnings, `#sentinelai-critical` for critical. Update the webhook URL in `k8s/monitoring/alertmanager.yaml` before applying.
+Alerts route to Slack via Alertmanager. Update the webhook URL in `k8s/monitoring/alertmanager.yaml` before applying.
 
 ---
 
 ## OPA Gatekeeper Policies
 
-Three admission policies are enforced across all SentinelAI namespaces. Any manifest that violates these gets rejected at apply time.
-
 | Policy | Rule |
 |---|---|
 | `require-non-root` | All containers must run as non-root user |
-| `require-resource-limits` | CPU and memory limits are required on every container |
-| `ban-latest-tag` | `:latest` image tag is not allowed |
+| `require-resource-limits` | CPU and memory limits required on every container |
+| `ban-latest-tag` | `:latest` image tag not allowed |
 
 ---
 
@@ -499,6 +471,28 @@ Three admission policies are enforced across all SentinelAI namespaces. Any mani
 | CPU Request / Limit | 50m / 100m | 100m / 200m | 200m / 400m |
 | Memory Request / Limit | 64Mi / 128Mi | 128Mi / 256Mi | 256Mi / 512Mi |
 | Image Pull Policy | Never | IfNotPresent | Always |
+
+---
+
+## CI/CD Pipeline
+
+```
+push to main
+     │
+     ▼
+  test
+  ├── Python 3.12
+  ├── pytest — 22 tests
+  └── coverage gate — 70% minimum
+     │
+     ├────────────────────┐
+     ▼                    ▼
+sonarcloud           docker-build
+                          │
+                          ▼
+                     trivy-scan
+                     CRITICAL CVE = fail
+```
 
 ---
 
@@ -518,7 +512,6 @@ make deploy-all       # Apply namespaces + all overlays
 
 # Observe
 make status           # Show pods across all 3 envs
-make status-dev       # Dev only
 make logs-dev         # Tail dev pod logs
 
 # Cluster
@@ -532,134 +525,33 @@ make clean            # Delete all deployments
 
 ---
 
-## CI/CD Pipeline
-
-```
-push to main
-     │
-     ▼
-  test
-  ├── Python 3.12
-  └── pytest — 21 tests
-     │
-     ├────────────────────┐
-     ▼                    ▼
-sonarcloud           docker-build
-                          │
-                          ▼
-                     trivy-scan
-                     CRITICAL CVE = fail
-```
-
-Branch protection is on — nothing merges without all jobs passing.
-
----
-
-## Useful kubectl Commands
-
-```bash
-# Cluster health
-kubectl get nodes
-kubectl get pods -A | grep sentinelai
-
-# Per environment
-kubectl get all -n sentinelai-dev
-kubectl get all -n sentinelai-staging
-kubectl get all -n sentinelai-prod
-
-# Autoscaling + resilience
-kubectl get hpa -n sentinelai-dev
-kubectl get pdb -n sentinelai-dev
-kubectl get networkpolicy -n sentinelai-dev
-
-# OPA policies
-kubectl get constrainttemplates
-kubectl get requirenonroot
-kubectl get requireresourcelimits
-kubectl get banlatesttag
-
-# Observability
-kubectl get servicemonitor -n monitoring
-kubectl get prometheusrule -n monitoring
-
-# Logs
-kubectl logs -l app=sentinelai -n sentinelai-dev --tail=50
-
-# Debug a pod
-kubectl describe pod <pod-name> -n sentinelai-dev
-
-# Port-forward (alternative to Ingress)
-kubectl port-forward -n sentinelai-dev svc/dev-sentinelai-service 9000:80
-```
-
----
-
 ## Troubleshooting
 
-**Dashboard shows "CONNECTING..." and no data**
-Port-forward is either not running or using the wrong port. Check:
+**Dashboard shows "CONNECTING..."**
+Port-forward not running. Run:
 ```bash
 kubectl port-forward svc/dev-sentinelai-service 8001:80 -n sentinelai-dev
 ```
-Then restart the frontend with `VITE_API_URL=http://localhost:8001`.
+Restart frontend with `VITE_API_URL=http://localhost:8001`.
 
 **K8s panel shows "Loading pod data..."**
-Prometheus port-forward is not active. Run:
+Prometheus port-forward not active:
 ```bash
 kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring
 ```
 
 **Pods stuck in Pending after Helm install**
-Usually a PVC issue on K3d. Check:
+Usually a PVC issue on K3d:
 ```bash
 kubectl get pvc -n monitoring
 kubectl describe pod <stuck-pod> -n monitoring
 ```
 
 **OPA blocks your manifest**
-Read the error message — it will say exactly which policy failed. Fix the manifest (add resource limits, set non-root user, change image tag).
+The error will say exactly which policy failed. Fix the manifest — add resource limits, set non-root user, or change image tag.
 
 **Terraform apply fails on EKS**
-Usually an IAM permissions issue. Make sure your AWS CLI user has `eks:*`, `ec2:*`, `iam:PassRole`, and `iam:CreateRole`.
-
----
-
-## Contributing
-
-Contributions are welcome. The project has a clear structure so it's easy to know where things go.
-
-### Getting started
-
-```bash
-# Fork the repo, then clone your fork
-git clone https://github.com/<your-username>/sentinel-ai-platform.git
-cd sentinel-ai-platform
-
-# Create a branch
-git checkout -b feat/your-feature
-```
-
-### Before submitting a PR
-
-```bash
-# Run tests
-pytest tests/ -v
-
-# Make sure existing environments still work
-make deploy-all
-make status
-```
-
-### PR guidelines
-
-- Use the PR template in `.github/PULL_REQUEST_TEMPLATE.md`
-- Keep PRs focused — one thing per PR
-- If you're adding a new endpoint, add tests for it
-- If you're adding a new K8s manifest, make sure it passes OPA policies
-
-### Found a bug?
-
-Open an issue using the bug report template in `.github/ISSUE_TEMPLATE/bug_report.md`. Include what you expected, what happened, and the relevant logs.
+Usually an IAM permissions issue. Your AWS CLI user needs `eks:*`, `ec2:*`, `iam:PassRole`, `iam:CreateRole`.
 
 ---
 
