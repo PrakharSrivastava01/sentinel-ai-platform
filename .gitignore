@@ -13,3 +13,4 @@ terraform.tfvars
 frontend/node_modules/
 .env
 /package-lock.json
+.coverage
