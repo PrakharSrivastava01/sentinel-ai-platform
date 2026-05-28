@@ -31,6 +31,10 @@ help:
 	@echo "  Cleanup:"
 	@echo "    make clean          Remove all environments"
 	@echo ""
+	@echo "  Full Stack:"
+	@echo "    make setup-all     Bring up entire stack"
+	@echo "    make teardown-all  Tear down entire stack"
+	@echo ""
 
 # ── Docker ─────────────────────────────────────────
 build:
@@ -120,3 +124,10 @@ compose-restart:
 
 compose-build:
 	docker compose build --no-cache
+
+# ── Full Stack ─────────────────────────────────────────────────────
+setup-all:
+	bash scripts/setup-all.sh
+
+teardown-all:
+	bash scripts/teardown-all.sh
