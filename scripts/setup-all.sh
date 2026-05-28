@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; NC='\033[0m'
 
 info()  { echo -e "${BLUE}[INFO]${NC}  $1"; }
@@ -62,7 +62,8 @@ ok "OPA Gatekeeper installed and policies applied."
 # ── Step 3: Docker image ───────────────────────────────────────────
 info "Step 3/7 -- Building and importing Docker image..."
 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-k3d image import ${IMAGE_NAME}:${IMAGE_TAG} -c $(kubectl config current-context | sed 's/k3d-//')
+k3d image import "${IMAGE_NAME}:${IMAGE_TAG}" -c "$(kubectl config current-context | sed 's/k3d-//')"
+
 ok "Image imported."
 
 # ── Step 4: App deploy ─────────────────────────────────────────────
@@ -95,7 +96,7 @@ ok "ServiceMonitor, PrometheusRule, Alertmanager applied."
 # ── Step 7: Frontend ───────────────────────────────────────────────
 info "Step 7/7 -- Deploying frontend dashboard..."
 docker build -t sentinelai-dashboard:1.0.0 frontend/
-k3d image import sentinelai-dashboard:1.0.0 -c $(kubectl config current-context | sed 's/k3d-//')
+k3d image import sentinelai-dashboard:1.0.0 -c "$(kubectl config current-context | sed 's/k3d-//')"
 kubectl apply -f k8s/frontend/dashboard.yaml
 ok "Frontend deployed."
 
