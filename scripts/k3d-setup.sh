@@ -1,245 +1,157 @@
+cat > ~/sentinel-ai-platform/scripts/k3d-setup.sh << 'SCRIPT'
 #!/bin/bash
 
-# ─────────────────────────────────────────────
-#  SentinelAI — K3d Cluster Setup Script
-#  Usage: ./k3d-setup.sh
-# ─────────────────────────────────────────────
+# ── Colors ─────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-set -e
+info()  { echo -e "${BLUE}[INFO]${NC}  $1"; }
+ok()    { echo -e "${GREEN}[OK]${NC}    $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# ── Colors ──
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+echo -e "${CYAN}"
+echo "╔══════════════════════════════════════╗"
+echo "║     SentinelAI — K3d Cluster Setup   ║"
+echo "╚══════════════════════════════════════╝"
+echo -e "${NC}"
 
-# ── Helpers ──
-info()    { echo -e "${BLUE}[INFO]${NC}  $1"; }
-success() { echo -e "${GREEN}[OK]${NC}    $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $1"; }
-error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+# ── Cluster name ───────────────────────────────────────────────────
+read -p "Enter cluster name [k3d-Sentinel-Cluster]: " CLUSTER_NAME
+CLUSTER_NAME=${CLUSTER_NAME:-k3d-Sentinel-Cluster}
+info "Cluster name set to: $CLUSTER_NAME"
 
-# ─────────────────────────────────────────────
-# CLEANUP FUNCTION
-# ─────────────────────────────────────────────
-cleanup_and_exit() {
-  echo ""
-  warn "Prerequisite check failed. Cleaning up..."
-
-  # Remove k3d if it was just installed in this session
-  if [[ "$K3D_JUST_INSTALLED" == "true" ]]; then
-    info "Removing k3d that was installed in this session..."
-    sudo rm -f /usr/local/bin/k3d 2>/dev/null && success "k3d removed" || warn "Could not remove k3d — remove manually: sudo rm -f /usr/local/bin/k3d"
-  fi
-
-  # Delete cluster if it was just created in this session
-  if [[ "$CLUSTER_JUST_CREATED" == "true" ]] && command -v k3d &>/dev/null; then
-    info "Removing cluster '${CLUSTER_NAME}' created in this session..."
-    k3d cluster delete "${CLUSTER_NAME}" 2>/dev/null && success "Cluster removed" || warn "Could not remove cluster"
-  fi
-
-  echo ""
-  echo -e "${RED}╔══════════════════════════════════════════════════╗${NC}"
-  echo -e "${RED}║           Prerequisites Not Satisfied            ║${NC}"
-  echo -e "${RED}╚══════════════════════════════════════════════════╝${NC}"
-  echo ""
-  echo -e "  Please install the missing tools and re-run the script."
-  echo ""
-
-  if [[ "$DOCKER_MISSING" == "true" ]]; then
-    echo -e "  ${YELLOW}Docker:${NC}"
-    echo -e "    sudo apt-get update"
-    echo -e "    sudo apt-get install -y docker.io"
-    echo -e "    sudo service docker start"
-    echo -e "    sudo usermod -aG docker \$USER"
-    echo -e "    newgrp docker"
-    echo ""
-  fi
-
-  if [[ "$DOCKER_DAEMON_DOWN" == "true" ]]; then
-    echo -e "  ${YELLOW}Docker daemon is not running:${NC}"
-    echo -e "    sudo service docker start"
-    echo ""
-  fi
-
-  if [[ "$KUBECTL_MISSING" == "true" ]]; then
-    echo -e "  ${YELLOW}kubectl:${NC}"
-    echo -e "    curl -LO https://dl.k8s.io/release/\$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-    echo -e "    chmod +x kubectl"
-    echo -e "    sudo mv kubectl /usr/local/bin/"
-    echo ""
-  fi
-
-  echo -e "  Once installed, re-run: ${GREEN}./k3d-setup.sh${NC}"
-  echo ""
-  exit 1
+# ── Cleanup old installs ───────────────────────────────────────────
+cleanup() {
+  info "Removing old Docker installations..."
+  sudo apt-get remove -y docker docker-engine docker.io containerd runc docker-compose 2>/dev/null || true
+  sudo apt-get autoremove -y 2>/dev/null || true
+  ok "Old Docker removed."
 }
 
-# ─────────────────────────────────────────────
-# STEP 0 — Banner
-# ─────────────────────────────────────────────
-echo ""
-echo -e "${BLUE}╔══════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     SentinelAI — K3d Cluster Setup   ║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════╝${NC}"
-echo ""
+# ── Install make ───────────────────────────────────────────────────
+install_make() {
+  info "Installing make..."
+  sudo apt-get install -y make
+  ok "make installed: $(make --version | head -1)"
+}
 
-# ─────────────────────────────────────────────
-# STEP 1 — User Input
-# ─────────────────────────────────────────────
-read -p "$(echo -e ${YELLOW}Enter cluster name: ${NC})" CLUSTER_NAME
+# ── Install Docker + Compose plugin (official repo) ────────────────
+install_docker() {
+  info "Installing Docker from official repo..."
+  sudo apt-get update -qq
+  sudo apt-get install -y ca-certificates curl gnupg
 
-if [[ -z "$CLUSTER_NAME" ]]; then
-  error "Cluster name cannot be empty."
-  exit 1
-fi
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-info "Cluster name set to: ${CLUSTER_NAME}"
-echo ""
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# ─────────────────────────────────────────────
-# STEP 2 — Prerequisites Check
-# ─────────────────────────────────────────────
-info "Checking prerequisites..."
+  sudo apt-get update -qq
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-PREREQ_FAILED=false
-DOCKER_MISSING=false
-DOCKER_DAEMON_DOWN=false
-KUBECTL_MISSING=false
-K3D_JUST_INSTALLED=false
-CLUSTER_JUST_CREATED=false
+  sudo systemctl start docker
+  sudo systemctl enable docker
+  sudo usermod -aG docker $USER
+  newgrp docker
+  ok "Docker installed: $(docker --version)"
+  ok "Docker Compose installed: $(docker compose version)"
+}
 
-# Docker binary check
-if ! command -v docker &>/dev/null; then
-  error "Docker not found."
-  DOCKER_MISSING=true
-  PREREQ_FAILED=true
-else
-  DOCKER_VERSION=$(docker --version | awk '{print $3}' | tr -d ',')
-  success "Docker found — v${DOCKER_VERSION}"
+# ── Install kubectl ────────────────────────────────────────────────
+install_kubectl() {
+  info "Installing kubectl..."
+  sudo rm -f /usr/local/bin/kubectl
+  curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  chmod +x kubectl
+  sudo mv kubectl /usr/local/bin/
+  ok "kubectl installed: $(kubectl version --client --short 2>/dev/null)"
+}
 
-  # Docker daemon check
-  if ! docker info &>/dev/null 2>&1; then
-    error "Docker daemon is not running."
-    DOCKER_DAEMON_DOWN=true
-    PREREQ_FAILED=true
-  else
-    success "Docker daemon is running"
-  fi
-fi
-
-# kubectl check
-if ! command -v kubectl &>/dev/null; then
-  error "kubectl not found."
-  KUBECTL_MISSING=true
-  PREREQ_FAILED=true
-else
-  KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null | awk '{print $3}')
-  success "kubectl found — ${KUBECTL_VERSION}"
-fi
-
-# If any prerequisite failed — cleanup and exit
-if [[ "$PREREQ_FAILED" == "true" ]]; then
-  cleanup_and_exit
-fi
-
-echo ""
-
-# ─────────────────────────────────────────────
-# STEP 3 — K3d Install (if not present)
-# ─────────────────────────────────────────────
-info "Checking k3d..."
-
-if ! command -v k3d &>/dev/null; then
-  warn "k3d not found — installing..."
-  K3D_JUST_INSTALLED=true
+# ── Install k3d ────────────────────────────────────────────────────
+install_k3d() {
+  info "Installing k3d..."
+  sudo rm -f /usr/local/bin/k3d
   curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+  ok "k3d installed: $(k3d version | head -1)"
+}
 
-  if ! command -v k3d &>/dev/null; then
-    error "k3d installation failed."
-    cleanup_and_exit
-  fi
-  success "k3d installed — $(k3d version | head -1)"
+# ── Check + auto-install ───────────────────────────────────────────
+info "Checking prerequisites..."
+sudo apt-get update -qq
+
+if ! command -v make &> /dev/null; then
+  warn "make not found. Installing..."
+  install_make
 else
-  success "k3d already installed — $(k3d version | head -1)"
+  ok "make found: $(make --version | head -1)"
 fi
 
-echo ""
-
-# ─────────────────────────────────────────────
-# STEP 4 — Existing Cluster Check
-# ─────────────────────────────────────────────
-info "Checking if cluster already exists..."
-
-if k3d cluster list | grep -q "^${CLUSTER_NAME}"; then
-  warn "Cluster '${CLUSTER_NAME}' already exists."
-  read -p "$(echo -e ${YELLOW}Delete and recreate? [y/N]: ${NC})" RECREATE
-  if [[ "$RECREATE" =~ ^[Yy]$ ]]; then
-    info "Deleting existing cluster..."
-    k3d cluster delete "${CLUSTER_NAME}"
-    success "Existing cluster deleted"
-  else
-    info "Using existing cluster."
-    k3d kubeconfig merge "${CLUSTER_NAME}" --kubeconfig-switch-context
-    success "Kubeconfig set — context: k3d-${CLUSTER_NAME}"
-    echo ""
-    kubectl cluster-info
-    exit 0
+# Docker — cleanup old, install fresh from official repo
+if ! docker compose version &> /dev/null 2>&1; then
+  warn "Docker or Compose plugin not found. Cleaning up and reinstalling..."
+  cleanup
+  install_docker
+else
+  ok "Docker found: $(docker --version)"
+  ok "Docker Compose found: $(docker compose version)"
+  if ! groups $USER | grep -q docker; then
+    warn "User not in docker group. Fixing..."
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ok "User added to docker group."
   fi
 fi
 
+if ! command -v kubectl &> /dev/null; then
+  warn "kubectl not found. Installing..."
+  install_kubectl
+else
+  ok "kubectl found: $(kubectl version --client --short 2>/dev/null)"
+fi
+
+if ! command -v k3d &> /dev/null; then
+  warn "k3d not found. Installing..."
+  install_k3d
+else
+  ok "k3d found: $(k3d version | head -1)"
+fi
+
+# ── All prerequisites ready ────────────────────────────────────────
+echo ""
+ok "All prerequisites satisfied."
 echo ""
 
-# ─────────────────────────────────────────────
-# STEP 5 — Cluster Create
-# ─────────────────────────────────────────────
-info "Creating cluster '${CLUSTER_NAME}'..."
-CLUSTER_JUST_CREATED=true
+# ── Create cluster ─────────────────────────────────────────────────
+info "Creating K3d cluster: $CLUSTER_NAME"
 
-k3d cluster create "${CLUSTER_NAME}" \
+k3d cluster create $CLUSTER_NAME \
+  --servers 1 \
   --agents 2 \
   --port "8080:80@loadbalancer" \
   --port "8443:443@loadbalancer" \
   --wait
 
-success "Cluster '${CLUSTER_NAME}' is ready"
-echo ""
-
-# ─────────────────────────────────────────────
-# STEP 6 — Kubeconfig Set
-# ─────────────────────────────────────────────
-info "Merging kubeconfig and switching context..."
-
-k3d kubeconfig merge "${CLUSTER_NAME}" --kubeconfig-switch-context
-success "Kubeconfig set — active context: k3d-${CLUSTER_NAME}"
-echo ""
-
-# ─────────────────────────────────────────────
-# STEP 7 — Verification
-# ─────────────────────────────────────────────
-info "Verifying cluster..."
-echo ""
-
-kubectl cluster-info
-echo ""
-
-info "Nodes:"
-kubectl get nodes -o wide
-echo ""
-
-info "System pods:"
-kubectl get pods -n kube-system
-echo ""
-
-# ─────────────────────────────────────────────
-# DONE
-# ─────────────────────────────────────────────
-echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   Cluster '${CLUSTER_NAME}' ready for SentinelAI!   ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
-echo ""
-echo -e "  ${BLUE}Context:${NC}  k3d-${CLUSTER_NAME}"
-echo -e "  ${BLUE}HTTP:${NC}     localhost:8080"
-echo -e "  ${BLUE}HTTPS:${NC}    localhost:8443"
-echo ""
+if [ $? -eq 0 ]; then
+  ok "Cluster '$CLUSTER_NAME' created successfully!"
+  echo ""
+  info "Nodes:"
+  kubectl get nodes
+  echo ""
+  echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
+  echo -e "${GREEN}║        Cluster Ready!                ║${NC}"
+  echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
+  echo ""
+  info "Next steps:"
+  info "  make deploy-all     → Deploy to K8s"
+  info "  make compose-up     → Run via Docker Compose"
+else
+  error "Cluster creation failed."
+  exit 1
+fi

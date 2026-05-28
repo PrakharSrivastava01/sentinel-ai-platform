@@ -101,3 +101,22 @@ clean:
 	kubectl delete -k k8s/overlays/dev/ --ignore-not-found
 	kubectl delete -k k8s/overlays/staging/ --ignore-not-found
 	kubectl delete -k k8s/overlays/prod/ --ignore-not-found
+
+# ── Docker Compose ─────────────────────────────────────────────────
+compose-up:
+	docker compose up -d
+
+compose-down:
+	docker compose down
+
+compose-logs:
+	docker compose logs -f
+
+compose-ps:
+	docker compose ps
+
+compose-restart:
+	docker compose restart
+
+compose-build:
+	docker compose build --no-cache
