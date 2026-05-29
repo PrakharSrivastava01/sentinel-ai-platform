@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: sentinelai
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: sentinelai-dev
+          - env: staging
+            namespace: sentinelai-staging
+          - env: prod
+            namespace: sentinelai-prod
+  template:
+    metadata:
+      name: 'sentinelai-{{env}}'
+      namespace: argocd
+      labels:
+        app: sentinelai
+        env: '{{env}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Heyyprakhar1/sentinel-ai-platform
+        targetRevision: main
+        path: 'k8s/overlays/{{env}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
