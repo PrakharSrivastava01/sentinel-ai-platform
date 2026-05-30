@@ -18,6 +18,7 @@ echo -e "${NC}"
 # ── Cluster name ───────────────────────────────────────────────────
 read -p "Enter cluster name [k3d-Sentinel-Cluster]: " CLUSTER_NAME
 CLUSTER_NAME=${CLUSTER_NAME:-k3d-Sentinel-Cluster}
+CLUSTER_NAME=$(echo "$CLUSTER_NAME" | tr ' ' '-')
 info "Cluster name set to: $CLUSTER_NAME"
 
 # ── Cleanup old installs ───────────────────────────────────────────
