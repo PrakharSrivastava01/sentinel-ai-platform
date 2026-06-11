@@ -27,9 +27,9 @@ spec:
         app: sentinelai-dashboard
     spec:
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1001
-        runAsGroup: 1001
+        runAsNonRoot: false
+          #runAsUser: 1001
+          #runAsGroup: 1001
       containers:
         - name: dashboard
           image: sentinelai-dashboard:1.0.0
