@@ -13,6 +13,7 @@
 ![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-K3d%20%2B%20EKS-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-1.15-7B42BC?style=flat-square&logo=terraform&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-Agentic%20AI-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-EKS%20%2B%20ECR-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
 
@@ -22,11 +23,15 @@
 
 ## What Is This
 
-SentinelAI is a production-style DevSecOps platform built from scratch — FastAPI backend, React dashboard, full Kubernetes deployment across dev/staging/prod environments, AWS EKS infrastructure via Terraform, and two independent CI pipelines running on every push.
+SentinelAI is a production-style DevSecOps platform built from scratch — FastAPI backend, React dashboard, full Kubernetes deployment across dev/staging/prod environments, AWS EKS infrastructure via Terraform, two independent CI pipelines, and an autonomous AI agent layer that diagnoses Kubernetes failures in real time.
 
-The backend is Kubernetes-native from day one: health probes, Prometheus metrics endpoint, structured JSON logging, typed service layer. On top of that: a Z-score anomaly detection engine, a kube-prometheus-stack observability setup, and a React dashboard pulling live metrics from both the API and Prometheus.
+The platform has two AI systems running in parallel:
 
-This is not a tutorial project. Every decision — Kustomize overlay structure, probe design, multi-env separation, securityContext enforcement, OPA admission policies — reflects how production teams actually run services.
+**1. Z-score Anomaly Engine (embedded in FastAPI)** — A rolling-window statistical engine that baselines 20 metric readings and fires alerts at Z > 2.0 (warning) and Z > 3.0 (critical). No LLM. Fast, deterministic, cheap.
+
+**2. Agentic K8s Diagnostic System (in `/ai`)** — An LLM-powered agent that autonomously selects kubectl tools, collects pod logs + describe output + namespace events, and generates structured RCA reports (root cause, severity, confidence, recommended fix) for failing pods. Built with LangChain + Ollama, designed so the LLM only runs where deterministic rules aren't enough.
+
+This is not a tutorial project. Every decision — Kustomize overlay structure, probe design, multi-env separation, securityContext enforcement, OPA admission policies, hybrid AI scoring — reflects how production teams actually run services.
 
 ---
 
@@ -41,7 +46,7 @@ Developer Workstation (WSL2 / Ubuntu)
   FastAPI Backend (Python 3.12)
   ┌────────────────────────────────┐
   │  /health  /status   /metrics  │  ← Kubernetes probe-ready
-  │  /alerts  /recommendation     │  ← Core workload
+  │  /alerts  /recommendation     │  ← Z-score anomaly engine
   └────────────────────────────────┘
               │
               ▼
@@ -58,6 +63,60 @@ Developer Workstation (WSL2 / Ubuntu)
 sentinelai  sentinelai  sentinelai
   -dev       -staging    -prod
  1 replica  2 replicas  3 replicas
+```
+
+### AI Agent Architecture
+
+```
+User Query (natural language)
+        │
+        ▼
+  agent_v2.py — Tool Selection
+  ┌──────────────────────────────────────────┐
+  │  LLM (qwen2.5-coder:7b via Ollama)      │
+  │  Picks one tool from 8 available         │
+  └──────────────────────────────────────────┘
+        │
+        ▼
+  Tool Execution (deterministic)
+  ┌─────────────┬─────────────────────────────┐
+  │ system_tools│  k8s_tools                  │
+  │ ─ cpu_usage │  ─ get_pods                 │
+  │ ─ mem_usage │  ─ get_nodes                │
+  │ ─ disk_usage│  ─ get_namespaces           │
+  │             │  ─ get_deployments          │
+  │             │  ─ cluster_health ──────┐   │
+  └─────────────┴──────────────────┬──────┘   │
+                                   │          │
+                          health_score.py ◄───┘
+                          ┌──────────────────────────────┐
+                          │ 1. Parse kubectl get pods -A  │
+                          │ 2. Score by severity          │
+                          │    crash/error → -30          │
+                          │    high restarts → -50        │
+                          │    warning → -10              │
+                          │ 3. Cluster score (0–100)      │
+                          │ 4. Call rca_engine for top 3  │
+                          └──────────────┬───────────────┘
+                                         │
+                               rca_engine.py
+                          ┌──────────────────────────────┐
+                          │  kubectl logs --tail=50       │
+                          │  kubectl describe pod         │
+                          │  kubectl get events           │
+                          │          │                    │
+                          │          ▼                    │
+                          │  LLM → strict JSON output     │
+                          │  {root_cause, severity,       │
+                          │   confidence, evidence[],     │
+                          │   recommended_fix}            │
+                          └──────────────────────────────┘
+        │
+        ▼
+  LLM Analysis (human-readable summary + recommendations)
+        │
+        ▼
+  Structured Response to user
 ```
 
 ### Production — AWS EKS via Terraform
@@ -97,7 +156,8 @@ AWS EKS v1.35 (ap-south-1)
      │   └── PDB — minAvailable: 1
      │
      ├── AI Layer
-     │   └── Z-score anomaly engine (20-reading rolling baseline)
+     │   ├── Z-score anomaly engine (FastAPI, 20-reading rolling baseline)
+     │   └── Agentic K8s diagnostics (LangChain + Ollama, RCA engine)
      │
      └── React Dashboard
          └── Live metrics + K8s pod panel via Prometheus API
@@ -134,9 +194,118 @@ AWS EKS v1.35 (ap-south-1)
 | Resilience | PodDisruptionBudget — minAvailable: 1 | ✅ |
 | Network Security | NetworkPolicy — zero trust | ✅ |
 | Pod Security | securityContext — runAsNonRoot, readOnlyRootFilesystem, no privilege escalation | ✅ |
-| AI Layer | Z-score anomaly detection + dynamic recommendations | ✅ |
+| Statistical AI | Z-score anomaly detection (FastAPI, 20-reading baseline) | ✅ |
+| Agentic AI | LangChain + Ollama — tool-calling agent, RCA engine, cluster health scoring | ✅ |
 | Frontend | React 18 + Vite — live metrics dashboard | ✅ |
 | GitOps | ArgoCD — continuous deployment | 🔄 In Progress |
+
+---
+
+## AI Layer — How It Works
+
+### System 1: Z-score Anomaly Engine
+
+The `/recommendation` endpoint runs a rolling-window statistical engine inside FastAPI.
+
+```
+Reading arrives
+     │
+     ▼
+Buffer (max 20 readings)
+     │
+     ├── < 5 readings → warming_up: true, confidence: low
+     │
+     └── ≥ 5 readings → calculate mean + std dev
+               │
+               ▼
+          Z-score = (current - mean) / std_dev
+               │
+               ├── Z > 3.0 → severity: critical
+               ├── Z > 2.0 → severity: warning
+               └── Z ≤ 2.0 → severity: info
+```
+
+Alert IDs are UUID-based (`alert-cpu-critical-a3f9b2c1`) — safe to pipe into PagerDuty or OpsGenie without collision.
+
+### System 2: Agentic K8s Diagnostic Agent (`/ai`)
+
+A two-generation agentic system built iteratively:
+
+**agent_v1 — Manual ReAct loop**
+- 4 tools: disk, memory, CPU, pods
+- LLM selects tool → tool executes → LLM analyzes result
+- ReAct loop implemented by hand to understand the pattern before abstracting it
+
+**agent_v2 — Expanded, modular**
+- 8 tools across `system_tools.py` and `k8s_tools.py`
+- Structured JSON output (not raw strings)
+- `cluster_health` tool triggers the full scoring + RCA pipeline
+
+**RCA Engine (`rca_engine.py`)**
+
+The autonomous diagnostic core. For a given failing pod, it:
+1. Fetches last 50 lines of pod logs
+2. Runs `kubectl describe pod`
+3. Fetches namespace events (sorted by timestamp)
+4. Sends all three to the LLM with a strict JSON contract
+
+Output schema:
+```json
+{
+  "root_cause": "...",
+  "severity": "critical|warning|info",
+  "confidence": "high|medium|low",
+  "evidence": ["..."],
+  "recommended_fix": "..."
+}
+```
+
+**Health Scoring (`health_score.py`)**
+
+Deterministic scoring — no LLM involved:
+
+| Condition | Deduction |
+|---|---|
+| CrashLoopBackOff / ImagePullBackOff / Error | −30 per pod |
+| Restarts > 200 | −30 per pod |
+| Restarts > 500 | −50 per pod |
+| Restarts > 50 | −10 per pod |
+
+Scores per namespace, averaged to a cluster-level score (0–100). RCA runs only on the top 3 most critical pods. **The LLM is used for explanation, not classification** — deterministic rules decide what's failing.
+
+### Running the AI Agent
+
+```bash
+cd ai/phase1_tools
+
+# Install dependencies
+pip install -r ../requirements.txt
+
+# Run Ollama with the required model
+ollama pull qwen2.5-coder:7b
+ollama serve
+
+# Interactive agent (v2)
+python agent_v2.py
+# Ask: "Check cluster health"
+# Ask: "Show all failing pods"
+# Ask: "Check memory usage"
+
+# Direct RCA on a specific pod
+python -c "
+from rca_engine import investigate_pod
+import json
+result = investigate_pod('sentinelai-prod', 'your-pod-name')
+print(json.dumps(json.loads(result), indent=2))
+"
+
+# Full cluster health report
+python -c "
+from health_score import get_cluster_health_report
+import json
+print(json.dumps(get_cluster_health_report(), indent=2))
+"
+```
 
 ---
 
@@ -151,7 +320,7 @@ sentinel-ai-platform/
 │   │   ├── health.py                 # GET /health  ← liveness probe
 │   │   ├── metrics.py                # GET /metrics ← Prometheus scrape
 │   │   ├── alerts.py                 # GET /alerts
-│   │   └── recommendations.py       # GET /recommendation ← AI layer
+│   │   └── recommendations.py       # GET /recommendation ← Z-score AI
 │   ├── core/
 │   │   ├── config.py                 # Pydantic-settings env config
 │   │   └── logging_config.py         # Structured JSON stdout logging
@@ -160,6 +329,18 @@ sentinel-ai-platform/
 │       ├── alert_service.py          # UUID alert IDs, real CPU readings
 │       ├── recommendation_service.py
 │       └── anomaly_detector.py       # Z-score engine — 20-reading baseline
+│
+├── ai/                               # Agentic AI diagnostic system
+│   ├── phase1_tools/
+│   │   ├── agent_v1.py               # Gen 1 — manual ReAct loop, 4 tools
+│   │   ├── agent_v2.py               # Gen 2 — 8 tools, structured JSON output
+│   │   ├── tools.py                  # Original baseline tool library
+│   │   ├── system_tools.py           # CPU / memory / disk via psutil
+│   │   ├── k8s_tools.py              # kubectl wrappers — pods/nodes/logs/describe/events
+│   │   ├── rca_engine.py             # Autonomous RCA: logs + describe + events → structured JSON
+│   │   ├── health_score.py           # Deterministic cluster scoring + RCA orchestration
+│   │   └── langchain_agent.py        # [WIP] Native LangChain agent exploration
+│   └── requirements.txt              # langchain, langchain-ollama, langgraph, psutil
 │
 ├── frontend/                         # React + Vite dashboard
 │   ├── src/
@@ -254,6 +435,7 @@ sentinel-ai-platform/
 | k3d | 5.0+ | Local Kubernetes |
 | Helm | 3.0+ | Prometheus stack |
 | Node.js | 18+ | Frontend dev server |
+| Ollama | latest | Local LLM runtime for AI agent |
 | Terraform | 1.10+ | AWS infra (optional) |
 | AWS CLI | 2.0+ | EKS access (optional) |
 
@@ -464,32 +646,6 @@ curl http://localhost:8000/recommendation | python3 -m json.tool
 
 ---
 
-## How the Anomaly Detection Works
-
-The `/recommendation` endpoint runs a Z-score engine on a rolling window of the last 20 metric readings.
-
-```
-Reading arrives
-     │
-     ▼
-Buffer (max 20 readings)
-     │
-     ├── < 5 readings → warming_up: true, confidence: low
-     │
-     └── ≥ 5 readings → calculate mean + std dev
-               │
-               ▼
-          Z-score = (current - mean) / std_dev
-               │
-               ├── Z > 3.0 → severity: critical
-               ├── Z > 2.0 → severity: warning
-               └── Z ≤ 2.0 → severity: info
-```
-
-Alert IDs are UUID-based (`alert-cpu-critical-a3f9b2c1`) — safe to pipe into PagerDuty, OpsGenie, or any deduplication system without collision.
-
----
-
 ## Alert Rules
 
 | Alert | Fires When | Severity |
@@ -600,6 +756,13 @@ The rejection message names the exact policy that failed. Either add resource li
 **`warming_up: true` in /recommendation**
 Expected. Z-score engine needs 5 readings (~30s of uptime) before baseline is ready.
 
+**AI agent can't reach Ollama**
+```bash
+ollama serve          # Make sure Ollama is running
+ollama list           # Confirm qwen2.5-coder:7b is installed
+ollama pull qwen2.5-coder:7b
+```
+
 **Gitleaks fails on CI**
 Check `.gitleaksignore` — if you've added new example credentials, document and suppress them there. Never suppress without a comment explaining why.
 
@@ -620,10 +783,13 @@ Your AWS CLI user needs: `eks:*`, `ec2:*`, `iam:PassRole`, `iam:CreateRole`, `ec
 | 6 | DevSecOps — OPA Gatekeeper (3 Rego policies), NetworkPolicy | ✅ Complete |
 | 7 | AWS EKS via Terraform — VPC, EKS, ECR, IAM, S3 remote state | ✅ Complete |
 | 8 | Observability — kube-prometheus-stack, Grafana, Alertmanager, HPA, PDB | ✅ Complete |
-| 9 | AI layer — Z-score anomaly engine, dynamic recommendations | ✅ Complete |
+| 9 | Statistical AI — Z-score anomaly engine, dynamic recommendations | ✅ Complete |
 | 10 | React dashboard — live metrics, anomaly panel, K8s pod panel | ✅ Complete |
 | 11 | Security hardening — securityContext, UUID alert IDs, CVE fixes, full security pipeline | ✅ Complete |
-| 12 | GitOps — ArgoCD continuous deployment | 🔄 In Progress |
+| 12 | Agentic AI — LangChain agent, RCA engine, cluster health scoring | ✅ Complete |
+| 13 | GitOps — ArgoCD continuous deployment | 🔄 In Progress |
+| 14 | Distributed tracing — correlation IDs, OpenTelemetry | 📋 Planned |
+| 15 | Multi-region DR | 📋 Planned |
 
 ---
 
